@@ -9,6 +9,8 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from google.cloud import storage, vision, aiplatform
 from google.cloud.vision_v1 import types
+from google import genai
+from google.genai import types as genai_types
 import threading
 import re
 from typing import List, Dict, Any
@@ -31,6 +33,7 @@ logger = logging.getLogger(__name__)
 GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
 GCP_REGION = os.getenv('GCP_REGION', 'us-central1')
 GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME')
+GOOGLE_CLOUD_API_KEY = os.getenv('GOOGLE_CLOUD_API_KEY')
 
 # Initialize GCP clients
 try:
@@ -41,12 +44,24 @@ try:
     # Initialize Vertex AI
     aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION)
     
+    # Initialize Gemini AI client
+    if GOOGLE_CLOUD_API_KEY:
+        gemini_client = genai.Client(
+            vertexai=True,
+            api_key=GOOGLE_CLOUD_API_KEY
+        )
+        logger.info("Gemini AI client initialized successfully")
+    else:
+        gemini_client = None
+        logger.warning("GOOGLE_CLOUD_API_KEY not provided, Gemini AI features disabled")
+    
     logger.info("GCP clients initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize GCP clients: {e}")
     storage_client = None
     vision_client = None
     bucket = None
+    gemini_client = None
 
 # In-memory job status store (use Redis in production)
 job_status = {}

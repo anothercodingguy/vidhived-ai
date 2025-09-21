@@ -170,6 +170,8 @@ export default function DocumentPage() {
               <AnalysisSidebar
                 clauses={analysis.analysis}
                 onClauseClick={handleClauseClick}
+                documentSummary={analysis.documentSummary}
+                fullAnalysis={analysis.fullAnalysis}
               />
             ) : analysis?.status === 'processing' ? (
               <div className="flex items-center justify-center h-full">

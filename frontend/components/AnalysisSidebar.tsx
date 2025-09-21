@@ -6,10 +6,13 @@ import { Clause } from '@/lib/api'
 interface AnalysisSidebarProps {
   clauses: Clause[]
   onClauseClick: (clauseId: string) => void
+  documentSummary?: string
+  fullAnalysis?: string
 }
 
-export default function AnalysisSidebar({ clauses, onClauseClick }: AnalysisSidebarProps) {
+export default function AnalysisSidebar({ clauses, onClauseClick, documentSummary, fullAnalysis }: AnalysisSidebarProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
+  const [activeTab, setActiveTab] = useState<'summary' | 'clauses'>('summary')
 
   const categories = ['All', 'Red', 'Yellow', 'Green']
   
@@ -73,94 +76,165 @@ export default function AnalysisSidebar({ clauses, onClauseClick }: AnalysisSide
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Legal Analysis</h2>
         
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="text-center p-2 bg-red-50 rounded">
-            <div className="text-lg font-bold text-red-600">{stats.Red}</div>
-            <div className="text-xs text-red-600">High Risk</div>
-          </div>
-          <div className="text-center p-2 bg-yellow-50 rounded">
-            <div className="text-lg font-bold text-yellow-600">{stats.Yellow}</div>
-            <div className="text-xs text-yellow-600">Medium Risk</div>
-          </div>
-          <div className="text-center p-2 bg-green-50 rounded">
-            <div className="text-lg font-bold text-green-600">{stats.Green}</div>
-            <div className="text-xs text-green-600">Low Risk</div>
-          </div>
-          <div className="text-center p-2 bg-gray-50 rounded">
-            <div className="text-lg font-bold text-gray-600">{stats.Total}</div>
-            <div className="text-xs text-gray-600">Total</div>
-          </div>
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 mb-4">
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`px-3 py-2 text-sm rounded-md transition-colors ${
+              activeTab === 'summary'
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Summary
+          </button>
+          <button
+            onClick={() => setActiveTab('clauses')}
+            className={`px-3 py-2 text-sm rounded-md transition-colors ${
+              activeTab === 'clauses'
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Clauses ({clauses.length})
+          </button>
         </div>
+        
+        {/* Stats - Only show for clauses tab */}
+        {activeTab === 'clauses' && (
+          <>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="text-center p-2 bg-red-50 rounded">
+                <div className="text-lg font-bold text-red-600">{stats.Red}</div>
+                <div className="text-xs text-red-600">High Risk</div>
+              </div>
+              <div className="text-center p-2 bg-yellow-50 rounded">
+                <div className="text-lg font-bold text-yellow-600">{stats.Yellow}</div>
+                <div className="text-xs text-yellow-600">Medium Risk</div>
+              </div>
+              <div className="text-center p-2 bg-green-50 rounded">
+                <div className="text-lg font-bold text-green-600">{stats.Green}</div>
+                <div className="text-xs text-green-600">Low Risk</div>
+              </div>
+              <div className="text-center p-2 bg-gray-50 rounded">
+                <div className="text-lg font-bold text-gray-600">{stats.Total}</div>
+                <div className="text-xs text-gray-600">Total</div>
+              </div>
+            </div>
 
-        {/* Category Filter */}
-        <div className="flex flex-wrap gap-1">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                selectedCategory === category
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {category}
-              {category !== 'All' && (
-                <span className="ml-1">({stats[category as keyof typeof stats] || 0})</span>
-              )}
-            </button>
-          ))}
-        </div>
+            {/* Category Filter */}
+            <div className="flex flex-wrap gap-1">
+              {categories.map(category => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                    selectedCategory === category
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {category}
+                  {category !== 'All' && (
+                    <span className="ml-1">({stats[category as keyof typeof stats] || 0})</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Clauses List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {filteredClauses.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            <p>No clauses found for the selected category.</p>
-          </div>
-        ) : (
-          filteredClauses.map(clause => (
-            <div
-              key={clause.id}
-              onClick={() => onClauseClick(clause.id)}
-              className={`clause-item ${clause.category.toLowerCase()} cursor-pointer`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <span className={getCategoryColor(clause.category)}>
-                    {getRiskIcon(clause.category)}
-                  </span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {clause.type}
-                  </span>
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === 'summary' ? (
+          /* Document Summary */
+          <div className="space-y-4">
+            {documentSummary || fullAnalysis ? (
+              <div className="prose prose-sm max-w-none">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    AI-Powered Document Summary
+                  </h3>
+                  <div className="text-sm text-blue-800 whitespace-pre-wrap">
+                    {fullAnalysis || documentSummary}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-500">
-                    Page {clause.page_number}
-                  </span>
-                  <span className={`text-xs px-2 py-1 rounded ${getCategoryColor(clause.category)}`}>
-                    {(clause.score * 100).toFixed(0)}%
-                  </span>
+                
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="text-center p-3 bg-gray-50 rounded">
+                    <div className="text-lg font-bold text-gray-900">{stats.Total}</div>
+                    <div className="text-xs text-gray-600">Total Clauses</div>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 rounded">
+                    <div className="text-lg font-bold text-red-600">{stats.Red}</div>
+                    <div className="text-xs text-red-600">High Risk</div>
+                  </div>
                 </div>
               </div>
-              
-              <p className="text-sm text-gray-700 mb-2 line-clamp-3">
-                {clause.text}
-              </p>
-              
-              {clause.explanation && (
-                <div className={`text-xs p-2 rounded border-l-4 ${
-                  clause.category === 'Red' 
-                    ? 'bg-red-50 border-red-400 text-red-700'
-                    : 'bg-yellow-50 border-yellow-400 text-yellow-700'
-                }`}>
-                  {clause.explanation}
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p>Document summary will appear here once analysis is complete.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Clauses List */
+          <div className="space-y-3">
+            {filteredClauses.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <p>No clauses found for the selected category.</p>
+              </div>
+            ) : (
+              filteredClauses.map(clause => (
+                <div
+                  key={clause.id}
+                  onClick={() => onClauseClick(clause.id)}
+                  className={`clause-item ${clause.category.toLowerCase()} cursor-pointer`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className={getCategoryColor(clause.category)}>
+                        {getRiskIcon(clause.category)}
+                      </span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {clause.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-500">
+                        Page {clause.page_number}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded ${getCategoryColor(clause.category)}`}>
+                        {(clause.score * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm text-gray-700 mb-2 line-clamp-3">
+                    {clause.text}
+                  </p>
+                  
+                  {clause.explanation && (
+                    <div className={`text-xs p-2 rounded border-l-4 ${
+                      clause.category === 'Red' 
+                        ? 'bg-red-50 border-red-400 text-red-700'
+                        : 'bg-yellow-50 border-yellow-400 text-yellow-700'
+                    }`}>
+                      {clause.explanation}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))
+              ))
+            )}
+          </div>
         )}
       </div>
     </div>

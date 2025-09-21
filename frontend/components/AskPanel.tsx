@@ -12,6 +12,7 @@ export default function AskPanel({ documentId }: AskPanelProps) {
   const [answer, setAnswer] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [hasAI, setHasAI] = useState(true)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,6 +24,7 @@ export default function AskPanel({ documentId }: AskPanelProps) {
     try {
       const result = await askQuestion(documentId, query)
       setAnswer(result.answer)
+      setHasAI(result.hasAI !== false)
     } catch (err) {
       setError('Failed to get answer. Please try again.')
       console.error('Ask question error:', err)
@@ -41,7 +43,17 @@ export default function AskPanel({ documentId }: AskPanelProps) {
 
   return (
     <div className="bg-white border-t border-gray-200 p-4">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ask Questions</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">Ask Questions</h3>
+        {hasAI && (
+          <div className="flex items-center text-green-600 text-xs">
+            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            Gemini AI Enabled
+          </div>
+        )}
+      </div>
       
       <form onSubmit={handleSubmit} className="mb-4">
         <div className="flex space-x-2">

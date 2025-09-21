@@ -26,12 +26,17 @@ export interface DocumentAnalysis {
   status: 'processing' | 'completed' | 'failed'
   fullText?: string
   analysis?: Clause[]
+  documentSummary?: string
+  fullAnalysis?: string
+  keyTerms?: string[]
+  entities?: string[]
   message?: string
 }
 
 export interface AskResponse {
   answer: string
   documentId: string
+  hasAI?: boolean
 }
 
 export async function uploadPDF(file: File): Promise<UploadResponse> {
