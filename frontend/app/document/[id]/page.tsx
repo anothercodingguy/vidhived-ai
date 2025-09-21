@@ -211,7 +211,10 @@ export default function DocumentPage() {
 
           {/* Ask Panel */}
           {analysis?.status === 'completed' && (
-            <AskPanel documentId={documentId} />
+            <AskPanel 
+              documentId={documentId} 
+              documentSummary={analysis.documentSummary || analysis.fullAnalysis}
+            />
           )}
         </div>
       </div>
