@@ -303,7 +303,11 @@ vidhived/
 
 ## 🚀 Quick Deploy to Production
 
-1. **Fork this repository**
+1. **Clone this repository**
+   ```bash
+   git clone https://github.com/anothercodingguy/vidhived-ai.git
+   cd vidhived-ai
+   ```
 2. **Set up GCP** (see DEPLOYMENT.md)
 3. **Deploy to Render.com** using the included render.yaml
 4. **Upload your GCP service account key**
@@ -318,6 +322,10 @@ vidhived/
 - [ ] API rate limiting and authentication
 - [ ] Advanced search and filtering
 - [ ] Export analysis reports
+
+## 🔗 Repository
+
+**GitHub**: https://github.com/anothercodingguy/vidhived-ai
 
 ## 📄 Additional Documentation
 
