@@ -49,10 +49,12 @@ def upload():
         }
         
         print(f"Stored doc: {doc_id}")
+        print(f"Total docs now: {len(docs)}")
+        print(f"Doc keys: {list(docs.keys())}")
         
         return jsonify({
             "documentId": doc_id,
-            "pdfUrl": f"https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+            "pdfUrl": f"data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsO4CjIgMCBvYmoKPDwKL0xlbmd0aCAzIDAgUgo+PgpzdHJlYW0KQNC4xOTAuNDc2IDc5Mi4wMDAgbApCVAovRjEgMTIgVGYKKFRlc3QgUERGKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCgozIDAgb2JqCjw8Ci9MZW5ndGggNAo+PgpzdHJlYW0KNApzdHJlYW0KZW5kb2JqCgp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA3NCAwMDAwMCBuIAowMDAwMDAwMTIwIDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNAovUm9vdCAxIDAgUgo+PgpzdGFydHhyZWYKMTQ5CiUlRU9G",
             "message": "Test upload successful"
         })
         
@@ -81,14 +83,24 @@ def get_doc(doc_id):
 @app.route('/pdf/<doc_id>', methods=['GET'])
 def get_pdf_url(doc_id):
     try:
-        print(f"Getting PDF URL for: {doc_id}")
+        print(f"=== PDF URL REQUEST ===")
+        print(f"Doc ID: {doc_id}")
+        print(f"Request headers: {dict(request.headers)}")
+        print(f"Request method: {request.method}")
+        print(f"Available docs: {list(docs.keys())}")
         
         if doc_id not in docs:
-            return jsonify({"error": "Not found"}), 404
+            print(f"Doc {doc_id} not found in docs")
+            return jsonify({"error": "Document not found"}), 404
         
-        return jsonify({
+        response_data = {
             "pdfUrl": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
-        })
+        }
+        print(f"Returning JSON: {response_data}")
+        
+        response = jsonify(response_data)
+        response.headers['Content-Type'] = 'application/json'
+        return response
         
     except Exception as e:
         print(f"PDF URL error: {e}")
