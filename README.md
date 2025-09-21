@@ -26,7 +26,8 @@ A fullstack AI-powered legal document analysis platform that helps users upload 
 - **OCR Analysis**: Extract text and bounding boxes using Vision API
 - **Legal Clause Scoring**: AI-powered risk assessment (Red/Yellow/Green)
 - **Interactive PDF Viewer**: Click clauses to highlight in PDF
-- **AI Chat**: Ask questions about document content
+- **🤖 Enhanced AI Chat**: Powered by Google Gemini 2.0 Flash for intelligent document Q&A
+- **📋 AI Document Summaries**: Comprehensive analysis with key parties, dates, and obligations
 - **Real-time Processing**: Live status updates during analysis
 
 ## 📋 Prerequisites
@@ -233,6 +234,7 @@ GCP_PROJECT_ID=your-gcp-project-id
 GCP_REGION=us-central1
 GCS_BUCKET_NAME=your-bucket-name
 GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/gcp-key.json
+GOOGLE_CLOUD_API_KEY=your-google-cloud-api-key
 CORS_ORIGINS=https://your-frontend-url.com
 LOG_LEVEL=INFO
 ```
@@ -330,4 +332,5 @@ vidhived/
 ## 📄 Additional Documentation
 
 - [Deployment Guide](DEPLOYMENT.md) - Complete production deployment instructions
+- [🤖 Gemini AI Setup](GEMINI_AI_SETUP.md) - Enhanced AI features configuration
 - [Project Structure](PROJECT_STRUCTURE.md) - Detailed codebase overview
