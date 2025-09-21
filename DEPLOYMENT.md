@@ -20,18 +20,21 @@
    **Frontend Service:**
    - `NEXT_PUBLIC_API_URL`: Will be set automatically to your backend URL
 
-## Option 1B: Fast Deployment (Minimal Dependencies)
+## Option 1B: Fast Deployment (Recommended)
 
-Use `render-fast.yaml` for faster builds with basic functionality:
-- Backend: Free web service with minimal dependencies (faster build)
-- Frontend: Free web service (same as above)
-- Build time: ~3-5 minutes vs ~15-20 minutes for full version
-
-## Option 1C: Alternative Free Configuration
-
-Use `render-free.yaml` for the same free deployment with full AI features:
-- Backend: Free web service with all AI dependencies
+Use `render.yaml` (default) for reliable, fast builds:
+- Backend: Free web service with minimal dependencies (3-5 min build)
 - Frontend: Free web service
+- Features: Basic PDF analysis, clause extraction, document processing
+- Reliability: High (fewer dependencies = fewer build issues)
+
+## Option 1C: Full AI Deployment (Advanced)
+
+Use `render-full-ai.yaml` for complete AI features:
+- Backend: Free web service with all AI dependencies (15-20 min build)
+- Frontend: Free web service
+- Features: Full AI analysis, Google Cloud integration, ML processing
+- Note: Longer build times, may have dependency conflicts
 
 ## Option 2: Deploy Services Separately
 
@@ -77,9 +80,10 @@ Use `render-free.yaml` for the same free deployment with full AI features:
 
 | Option | Build Time | AI Features | Dependencies | Best For |
 |--------|------------|-------------|--------------|----------|
-| `render.yaml` | 15-20 min | Full AI | All packages | Production with AI |
-| `render-fast.yaml` | 3-5 min | Basic only | Minimal | Quick testing |
-| `render-free.yaml` | 15-20 min | Full AI | All packages | Alternative config |
+| `render.yaml` | 3-5 min | Basic only | Minimal | **Recommended - Fast & Reliable** |
+| `render-fast.yaml` | 3-5 min | Basic only | Minimal | Same as above |
+| `render-full-ai.yaml` | 15-20 min | Full AI | All packages | Advanced AI features |
+| `render-free.yaml` | 15-20 min | Full AI | All packages | Alternative full config |
 
 ## Google Cloud Setup (OPTIONAL)
 

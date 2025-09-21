@@ -1,10 +1,10 @@
 services:
-  # Backend Flask API (Free Tier - Fast Build)
+  # Backend Flask API (Free Tier - Full AI Features)
   - type: web
     name: vidhived-backend
     env: python
     plan: free
-    buildCommand: "pip install -r backend/requirements-minimal.txt"
+    buildCommand: "pip install -r backend/requirements.txt"
     startCommand: "cd backend && gunicorn --config gunicorn.conf.py app:app"
     envVars:
       - key: FLASK_ENV
