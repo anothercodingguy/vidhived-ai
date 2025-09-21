@@ -15,6 +15,9 @@ import threading
 import re
 from typing import List, Dict, Any
 
+# Import advanced legal analysis components
+from legal_analysis.advanced_analyzer import AdvancedLegalAnalyzer
+
 # Load environment variables
 load_dotenv()
 
@@ -55,6 +58,9 @@ try:
         gemini_client = None
         logger.warning("GOOGLE_CLOUD_API_KEY not provided, Gemini AI features disabled")
     
+    # Initialize Advanced Legal Analyzer
+    advanced_analyzer = AdvancedLegalAnalyzer()
+    
     logger.info("GCP clients initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize GCP clients: {e}")
@@ -62,6 +68,7 @@ except Exception as e:
     vision_client = None
     bucket = None
     gemini_client = None
+    advanced_analyzer = None
 
 # In-memory job status store (use Redis in production)
 job_status = {}
@@ -209,6 +216,152 @@ async def get_ai_explanation(clause_text: str, category: str) -> str:
         logger.error(f"Failed to get AI explanation: {e}")
         return f"Unable to generate explanation for this {category.lower()} risk clause."
 
+def generate_document_summary_and_analysis(full_text: str) -> Dict[str, Any]:
+    """Generate comprehensive document summary using Gemini AI"""
+    if not gemini_client or not full_text.strip():
+        return {
+            "summary": "Document analysis unavailable - Gemini AI not configured",
+            "key_terms": [],
+            "entities": [],
+            "error": "Gemini AI client not available"
+        }
+    
+    try:
+        # System instruction for legal document analysis
+        system_instruction = """Primary Goals:
+Read the entire legal document provided as plain text.
+Produce a clear, concise summary of the overall document, capturing all major obligations, rights, parties, dates, amounts, and key terms.
+Identify and extract definitions of key terms used throughout the document.
+Highlight important entities (e.g., parties, amounts, dates, obligations).
+Maintain the context of the document so that you can answer any follow-up questions the user might ask later about clauses, obligations, or terms.
+
+Guidelines:
+Maintain a professional, objective, and neutral legal tone.
+Focus strictly on the input text. Do not invent or assume details.
+For initial output, provide a document-level summary first.
+Keep all context internally so you can respond accurately to subsequent user questions about the document.
+Optionally, indicate which clause or section a key term or entity appears in.
+
+Role:
+You act as a legal analysis backend that first produces a document summary and then stays "aware" of the full content to answer follow-up questions interactively."""
+
+        # Create the prompt
+        prompt = f"""you will receive the full legal document as plain text below.
+
+Task:
+Provide a clear, human-readable summary of the entire document, highlighting key parties, dates, amounts, obligations, and rights.
+Extract and define key terms mentioned throughout the document.
+Identify important entities and obligations.
+Maintain the full context of the document so you can answer any follow-up questions I may ask about specific clauses, obligations, or terms.
+
+Output:
+Start with a document-level summary.
+Optionally list key terms, entities, and their definitions.
+After this, be ready to answer follow-up questions interactively without needing the document text again.
+
+Document:
+{full_text}"""
+
+        # Create message content
+        msg_content = genai_types.Part.from_text(text=prompt)
+        contents = [genai_types.Content(role="user", parts=[msg_content])]
+        
+        # Configure generation settings
+        generate_config = genai_types.GenerateContentConfig(
+            temperature=0.3,  # Lower temperature for more consistent legal analysis
+            top_p=0.8,
+            max_output_tokens=4096,
+            safety_settings=[
+                genai_types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
+                genai_types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
+                genai_types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
+                genai_types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
+            ],
+            system_instruction=[genai_types.Part.from_text(text=system_instruction)]
+        )
+        
+        # Generate response
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=contents,
+            config=generate_config
+        )
+        
+        return {
+            "summary": response.text,
+            "key_terms": [],  # Could be extracted from response if needed
+            "entities": [],   # Could be extracted from response if needed
+            "full_analysis": response.text
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to generate document summary: {e}")
+        return {
+            "summary": f"Error generating document analysis: {str(e)}",
+            "key_terms": [],
+            "entities": [],
+            "error": str(e)
+        }
+
+def ask_document_question(full_text: str, question: str, document_context: str = "") -> str:
+    """Ask a specific question about the document using Gemini AI"""
+    if not gemini_client:
+        return "AI question answering unavailable - Gemini AI not configured"
+    
+    try:
+        # System instruction for Q&A
+        system_instruction = """You are a legal document analysis assistant. You have been provided with a legal document and must answer questions about it accurately and professionally.
+
+Guidelines:
+- Answer based strictly on the document content provided
+- Maintain a professional, objective tone
+- If information is not in the document, clearly state that
+- Provide specific references to clauses or sections when possible
+- Keep answers concise but comprehensive"""
+
+        # Create the Q&A prompt
+        prompt = f"""Based on the following legal document, please answer the user's question:
+
+Document:
+{full_text}
+
+{f"Previous context: {document_context}" if document_context else ""}
+
+Question: {question}
+
+Please provide a clear, accurate answer based on the document content."""
+
+        # Create message content
+        msg_content = genai_types.Part.from_text(text=prompt)
+        contents = [genai_types.Content(role="user", parts=[msg_content])]
+        
+        # Configure generation settings
+        generate_config = genai_types.GenerateContentConfig(
+            temperature=0.2,  # Very low temperature for factual Q&A
+            top_p=0.8,
+            max_output_tokens=2048,
+            safety_settings=[
+                genai_types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
+                genai_types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
+                genai_types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
+                genai_types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
+            ],
+            system_instruction=[genai_types.Part.from_text(text=system_instruction)]
+        )
+        
+        # Generate response
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=contents,
+            config=generate_config
+        )
+        
+        return response.text
+        
+    except Exception as e:
+        logger.error(f"Failed to answer document question: {e}")
+        return f"Error processing question: {str(e)}"
+
 def process_document_async(doc_id: str, pdf_blob_name: str):
     """Background task to process uploaded PDF"""
     try:
@@ -256,12 +409,37 @@ def process_document_async(doc_id: str, pdf_blob_name: str):
                 explanation = asyncio.run(get_ai_explanation(clause["text"], clause["category"]))
                 clause["explanation"] = explanation
         
+        # Generate comprehensive document summary using Gemini AI
+        job_status[doc_id]["message"] = "Generating document summary..."
+        document_summary = generate_document_summary_and_analysis(full_text)
+        
+        # Perform advanced legal analysis
+        advanced_analysis = {}
+        if advanced_analyzer:
+            job_status[doc_id]["message"] = "Performing advanced legal analysis..."
+            try:
+                # Convert clauses to format expected by advanced analyzer
+                clauses_dict = {}
+                for i, clause in enumerate(clauses, 1):
+                    clauses_dict[f"Clause {i}"] = clause["text"]
+                
+                advanced_analysis = advanced_analyzer.analyze_document_clauses(clauses_dict)
+                logger.info("Advanced legal analysis completed")
+            except Exception as e:
+                logger.error(f"Advanced analysis failed: {e}")
+                advanced_analysis = {"status": "error", "error": str(e)}
+        
         # Save final analysis to GCS
         analysis_result = {
             "documentId": doc_id,
             "status": "completed",
             "fullText": full_text,
-            "analysis": clauses
+            "analysis": clauses,
+            "documentSummary": document_summary.get("summary", ""),
+            "fullAnalysis": document_summary.get("full_analysis", ""),
+            "keyTerms": document_summary.get("key_terms", []),
+            "entities": document_summary.get("entities", []),
+            "advancedAnalysis": advanced_analysis
         }
         
         analysis_blob_name = f"analysis-results/{doc_id}/final_analysis.json"
@@ -380,7 +558,7 @@ def get_document_status(doc_id):
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    """Answer questions about the document"""
+    """Answer questions about the document using enhanced Gemini AI"""
     try:
         data = request.get_json()
         doc_id = data.get('documentId')
@@ -395,18 +573,122 @@ def ask_question():
         # Get document analysis
         analysis_result = job_status[doc_id]["analysis_result"]
         full_text = analysis_result.get("fullText", "")
+        document_summary = analysis_result.get("documentSummary", "")
         
-        # Mock AI response (replace with actual Vertex AI Gemini call)
-        answer = f"Based on the document analysis, regarding '{query}': This is a mock response. The document contains {len(analysis_result.get('analysis', []))} analyzed clauses. Please implement actual Vertex AI integration for production use."
+        # Use enhanced Gemini AI for question answering
+        if gemini_client and full_text:
+            answer = ask_document_question(full_text, query, document_summary)
+        else:
+            # Fallback response
+            answer = f"Based on the document analysis, regarding '{query}': The document contains {len(analysis_result.get('analysis', []))} analyzed clauses. Enhanced AI analysis is not available - please configure GOOGLE_CLOUD_API_KEY."
         
         return jsonify({
             "answer": answer,
-            "documentId": doc_id
+            "documentId": doc_id,
+            "hasAI": gemini_client is not None
         })
         
     except Exception as e:
         logger.error(f"Failed to answer question: {e}")
         return jsonify({"error": "Failed to process question"}), 500
+
+@app.route('/analyze-clauses', methods=['POST'])
+def analyze_clauses():
+    """Perform advanced analysis on provided clauses"""
+    try:
+        data = request.get_json()
+        clauses_text = data.get('clauses', {})
+        
+        if not clauses_text:
+            return jsonify({"error": "No clauses provided"}), 400
+        
+        if not advanced_analyzer:
+            return jsonify({"error": "Advanced analysis not available"}), 503
+        
+        # Perform analysis
+        result = advanced_analyzer.analyze_document_clauses(clauses_text)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Clause analysis failed: {e}")
+        return jsonify({"error": "Analysis failed"}), 500
+
+@app.route('/extract-entities', methods=['POST'])
+def extract_entities():
+    """Extract entities from provided text"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        
+        if not text:
+            return jsonify({"error": "No text provided"}), 400
+        
+        if not advanced_analyzer:
+            return jsonify({"error": "Entity extraction not available"}), 503
+        
+        # Extract entities
+        entities = advanced_analyzer.get_entity_glossary(text)
+        
+        return jsonify({
+            "entities": entities,
+            "text": text
+        })
+        
+    except Exception as e:
+        logger.error(f"Entity extraction failed: {e}")
+        return jsonify({"error": "Entity extraction failed"}), 500
+
+@app.route('/score-importance', methods=['POST'])
+def score_importance():
+    """Score text importance"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        
+        if not text:
+            return jsonify({"error": "No text provided"}), 400
+        
+        if not advanced_analyzer:
+            return jsonify({"error": "Importance scoring not available"}), 503
+        
+        # Score importance
+        score = advanced_analyzer.score_text_importance(text)
+        
+        return jsonify({
+            "text": text,
+            "importance_score": score,
+            "risk_level": "High" if score >= 0.7 else "Medium" if score >= 0.4 else "Low"
+        })
+        
+    except Exception as e:
+        logger.error(f"Importance scoring failed: {e}")
+        return jsonify({"error": "Importance scoring failed"}), 500
+
+@app.route('/summarize-text', methods=['POST'])
+def summarize_text():
+    """Summarize provided text"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        
+        if not text:
+            return jsonify({"error": "No text provided"}), 400
+        
+        if not advanced_analyzer:
+            return jsonify({"error": "Text summarization not available"}), 503
+        
+        # Summarize text
+        summary = advanced_analyzer.summarize_text(text)
+        
+        return jsonify({
+            "original_text": text,
+            "summary": summary
+        })
+        
+    except Exception as e:
+        logger.error(f"Text summarization failed: {e}")
+        return jsonify({"error": "Text summarization failed"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))

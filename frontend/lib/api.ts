@@ -30,7 +30,49 @@ export interface DocumentAnalysis {
   fullAnalysis?: string
   keyTerms?: string[]
   entities?: string[]
+  advancedAnalysis?: AdvancedAnalysis
   message?: string
+}
+
+export interface AdvancedAnalysis {
+  status: string
+  clauses: Record<string, AdvancedClause>
+  html_visualization: string
+  summary: AnalysisSummary
+  total_clauses: number
+  analysis_features: {
+    entity_extraction: boolean
+    phrase_scoring: boolean
+    clause_summarization: boolean
+    html_rendering: boolean
+  }
+}
+
+export interface AdvancedClause {
+  text: string
+  entities: {
+    dates: string[]
+    parties: string[]
+    money: string[]
+  }
+  phrases: Record<string, {
+    score: number
+    hex: string
+  }>
+  summary?: string
+}
+
+export interface AnalysisSummary {
+  total_clauses: number
+  high_risk_clauses: number
+  medium_risk_clauses: number
+  low_risk_clauses: number
+  unique_dates: number
+  unique_money_amounts: number
+  unique_parties: number
+  all_dates: string[]
+  all_money: string[]
+  all_parties: string[]
 }
 
 export interface AskResponse {
@@ -90,6 +132,74 @@ export async function askQuestion(documentId: string, query: string): Promise<As
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.error || 'Failed to ask question')
+  }
+
+  return response.json()
+}
+
+export async function analyzeClauses(clauses: Record<string, string>): Promise<AdvancedAnalysis> {
+  const response = await fetch(`${API_URL}/analyze-clauses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ clauses }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to analyze clauses')
+  }
+
+  return response.json()
+}
+
+export async function extractEntities(text: string): Promise<{entities: Record<string, string[]>, text: string}> {
+  const response = await fetch(`${API_URL}/extract-entities`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to extract entities')
+  }
+
+  return response.json()
+}
+
+export async function scoreImportance(text: string): Promise<{text: string, importance_score: number, risk_level: string}> {
+  const response = await fetch(`${API_URL}/score-importance`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to score importance')
+  }
+
+  return response.json()
+}
+
+export async function summarizeText(text: string): Promise<{original_text: string, summary: string}> {
+  const response = await fetch(`${API_URL}/summarize-text`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to summarize text')
   }
 
   return response.json()
