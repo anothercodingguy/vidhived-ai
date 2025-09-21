@@ -13,15 +13,17 @@ services:
         value: 10000
     healthCheckPath: /health
 
-  # Frontend Next.js App (Free Tier)
+  # Frontend Next.js App (Free Tier - Optimized)
   - type: web
     name: vidhived-frontend
     env: node
     plan: free
-    buildCommand: "cd frontend && npm install && npm run build"
+    buildCommand: "cd frontend && npm ci && npm run build"
     startCommand: "cd frontend && npm start"
     envVars:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
         value: https://vidhived-backend.onrender.com
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"

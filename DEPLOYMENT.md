@@ -1,153 +1,51 @@
-# Deployment Guide for Render (FREE TIER)
+# Simple Deployment Guide
 
-## Option 1: Deploy using render.yaml (FREE - Recommended)
+## Deploy to Render (FREE)
 
-1. **Connect your GitHub repository to Render:**
-   - Go to [render.com](https://render.com) and sign up/login (NO PAYMENT REQUIRED)
-   - Click "New" → "Blueprint"
-   - Connect your GitHub account and select this repository
-   - Render will automatically detect the `render.yaml` file
-   - Both services will deploy on the **FREE TIER**
+1. **Go to [render.com](https://render.com)** - No payment required
+2. **Click "New" → "Blueprint"**
+3. **Connect GitHub** and select `anothercodingguy/vidhived-ai`
+4. **Deploy automatically** - Render detects `render.yaml`
+5. **Wait 3-5 minutes** for both services to build
 
-2. **Set Environment Variables (Optional for basic functionality):**
-   
-   **Backend Service:**
-   - `GOOGLE_CLOUD_PROJECT_ID`: Your Google Cloud project ID (optional)
-   - `GOOGLE_CLOUD_API_KEY`: Your Google Cloud API key (optional)
-   - `GOOGLE_CLOUD_STORAGE_BUCKET`: Your GCS bucket name (optional)
-   - `FLASK_ENV`: `production` (already set)
-   
-   **Frontend Service:**
-   - `NEXT_PUBLIC_API_URL`: Will be set automatically to your backend URL
+## What You Get
 
-## Option 1B: Simple Deployment (Recommended - GUARANTEED TO WORK)
+✅ **PDF Upload & Viewing** - Upload and display legal documents  
+✅ **Sample Analysis** - Demonstrates legal clause analysis UI  
+✅ **Document Management** - Track uploaded documents  
+✅ **Responsive Interface** - Works on desktop and mobile  
+✅ **100% Free** - No payment required, ever
 
-Use `render.yaml` (default) for ultra-reliable builds:
-- Backend: Free web service with Flask only (1-2 min build)
-- Frontend: Free web service
-- Features: PDF upload, viewing, sample analysis
-- Reliability: 100% (minimal dependencies = no build failures)
+## Your URLs
 
-## Option 1C: Advanced Deployment (For Later)
+After deployment, your app will be available at:
+- **Frontend:** `https://vidhived-frontend.onrender.com`
+- **Backend API:** `https://vidhived-backend.onrender.com`
 
-Use `render-full-ai.yaml` for complete AI features:
-- Backend: Free web service with all AI dependencies (15-20 min build)
-- Frontend: Free web service
-- Features: Full AI analysis, Google Cloud integration, ML processing
-- Note: Use this only after the simple version is working
+## Features
 
-## Option 2: Deploy Services Separately
-
-### Backend Deployment (FREE)
-
-1. **Create a new Web Service:**
-   - Repository: Your GitHub repo
-   - **Plan: FREE** (select this explicitly)
-   - Build Command: `pip install -r backend/requirements.txt && python -m spacy download en_core_web_sm`
-   - Start Command: `cd backend && gunicorn --config gunicorn.conf.py app:app`
-   - Environment: `Python 3`
-
-2. **Environment Variables (Optional):**
-   ```
-   FLASK_ENV=production
-   PORT=10000
-   ```
-
-### Frontend Deployment (FREE)
-
-**Option A: Web Service (FREE)**
-1. **Create a new Web Service:**
-   - Repository: Your GitHub repo
-   - **Plan: FREE** (select this explicitly)
-   - Build Command: `cd frontend && npm install && npm run build`
-   - Start Command: `cd frontend && npm start`
-   - Environment: `Node`
-
-**Option B: Alternative Web Service (FREE)**
-1. **Create a new Web Service:**
-   - Repository: Your GitHub repo
-   - **Plan: FREE** (select this explicitly)
-   - Build Command: `cd frontend && npm install && npm run build`
-   - Start Command: `cd frontend && npm start`
-   - Environment: `Node`
-
-2. **Environment Variables:**
-   ```
-   NEXT_PUBLIC_API_URL=https://your-backend-service.onrender.com
-   ```
-
-## Deployment Options Summary
-
-| Option | Build Time | AI Features | Dependencies | Best For |
-|--------|------------|-------------|--------------|----------|
-| `render.yaml` | 1-2 min | Basic | Core Flask only | **Recommended - Ultra Fast & Reliable** |
-| `render-core.yaml` | 1-2 min | Basic | Core Flask only | Same as above |
-| `render-fast.yaml` | 3-5 min | Basic + PDF | Minimal | PDF processing |
-| `render-full-ai.yaml` | 15-20 min | Full AI | All packages | Advanced AI features |
-
-## Google Cloud Setup (OPTIONAL)
-
-**The app works without Google Cloud - it will use fallback analysis methods.**
-
-If you want full AI features:
-
-1. **Enable APIs:**
-   - Cloud Vision API
-   - Cloud Storage API
-   - Vertex AI API (for Gemini)
-
-2. **Create Service Account:**
-   - Create a service account with necessary permissions
-   - Download the JSON key file
-   - Set `GOOGLE_CLOUD_API_KEY` to the base64 encoded content of the JSON file
-
-3. **Create Storage Bucket:**
-   - Create a GCS bucket for file storage
-   - Set appropriate permissions
-
-**Without Google Cloud:**
-- Basic legal analysis still works
-- Uses local NLP processing
-- File upload works with temporary storage
-
-## Health Checks
-
-- Backend: `https://your-backend.onrender.com/health`
-- Frontend: `https://your-frontend.onrender.com`
+- **PDF Upload:** Drag & drop or click to upload legal documents
+- **PDF Viewer:** Built-in PDF viewer with navigation
+- **Sample Analysis:** Demonstrates legal clause categorization
+- **Document Status:** Real-time processing status
+- **Responsive Design:** Works on all devices
 
 ## Troubleshooting
 
-1. **Build Failures:**
-   - Check that all dependencies are in requirements.txt
-   - Ensure spaCy model downloads successfully
-   - Verify Python version compatibility
+**If deployment fails:**
+1. Check the build logs in Render dashboard
+2. Ensure your GitHub repo is public
+3. Try redeploying from the Render dashboard
 
-2. **Runtime Errors:**
-   - Check environment variables are set correctly
-   - Verify Google Cloud credentials
-   - Check logs in Render dashboard
+**If the app doesn't load:**
+1. Wait for both services to finish building
+2. Check that both services show "Live" status
+3. Visit the health check: `https://your-backend.onrender.com/health`
 
-3. **CORS Issues:**
-   - Ensure frontend URL is added to CORS origins in backend
-   - Check that API_URL environment variable is correct
+## Free Tier Info
 
-## Free Tier Limitations & Optimizations
-
-**Free Tier Includes:**
-- ✅ 750 hours/month of runtime (enough for most projects)
-- ✅ Automatic HTTPS
-- ✅ Custom domains
-- ✅ Git-based deployments
-
-**Limitations:**
-- 🔄 Services sleep after 15 minutes of inactivity
-- ⏱️ Cold start delay (10-30 seconds) when waking up
-- 💾 Limited memory and CPU
-- 📊 Basic metrics only
-
-**Optimizations Applied:**
-- Backend uses optimized Gunicorn configuration for free tier
-- Both services use free tier plans (no payment required)
-- Health checks ensure service availability
-- Efficient resource usage to stay within limits
-- Dynamic routes work properly with web service deployment
+- ✅ **750 hours/month** runtime (plenty for personal use)
+- ✅ **Automatic HTTPS** and SSL certificates  
+- ✅ **Custom domains** supported
+- 🔄 **Services sleep** after 15 minutes of inactivity
+- ⏱️ **10-30 second** wake-up time when accessed
