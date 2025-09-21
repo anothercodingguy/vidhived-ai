@@ -19,9 +19,9 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
   const [selectedClause, setSelectedClause] = useState<Clause | null>(null)
 
   const categories = ['All', 'Red', 'Yellow', 'Green']
-  
-  const filteredClauses = selectedCategory === 'All' 
-    ? clauses 
+
+  const filteredClauses = selectedCategory === 'All'
+    ? clauses
     : clauses.filter(clause => clause.category === selectedCategory)
 
   const getCategoryStats = () => {
@@ -29,7 +29,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
       acc[clause.category] = (acc[clause.category] || 0) + 1
       return acc
     }, {} as Record<string, number>)
-    
+
     return {
       Red: stats.Red || 0,
       Yellow: stats.Yellow || 0,
@@ -105,41 +105,38 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Legal Analysis</h2>
-        
+
         {/* Tab Navigation */}
         <div className="flex space-x-1 mb-4">
           <button
             onClick={() => setActiveTab('summary')}
-            className={`px-2 py-2 text-xs rounded-md transition-colors ${
-              activeTab === 'summary'
+            className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'summary'
                 ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+              }`}
           >
             Summary
           </button>
           <button
             onClick={() => setActiveTab('clauses')}
-            className={`px-2 py-2 text-xs rounded-md transition-colors ${
-              activeTab === 'clauses'
+            className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'clauses'
                 ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+              }`}
           >
             Clauses ({clauses.length})
           </button>
           <button
             onClick={() => setActiveTab('categories')}
-            className={`px-2 py-2 text-xs rounded-md transition-colors ${
-              activeTab === 'categories'
+            className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'categories'
                 ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+              }`}
           >
             Categories
           </button>
         </div>
-        
+
         {/* Stats - Only show for clauses tab */}
         {activeTab === 'clauses' && (
           <>
@@ -168,11 +165,10 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                    selectedCategory === category
+                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${selectedCategory === category
                       ? 'bg-primary-600 text-white border-primary-600'
                       : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   {category}
                   {category !== 'All' && (
@@ -203,7 +199,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                     {fullAnalysis || documentSummary}
                   </div>
                 </div>
-                
+
                 {/* Advanced Analysis Stats */}
                 {advancedAnalysis?.summary && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
@@ -224,7 +220,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                     </div>
                   </div>
                 )}
-                
+
                 {/* Quick Stats */}
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <div className="text-center p-3 bg-gray-50 rounded">
@@ -269,7 +265,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                     </div>
                   </div>
                 )}
-                
+
                 {/* Dates */}
                 {advancedAnalysis.summary.all_dates.length > 0 && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -288,7 +284,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                     </div>
                   </div>
                 )}
-                
+
                 {/* Money Amounts */}
                 {advancedAnalysis.summary.all_money.length > 0 && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -308,7 +304,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                     </div>
                   </div>
                 )}
-                
+
                 {/* Analysis Features Status */}
                 {advancedAnalysis.analysis_features && (
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -347,13 +343,12 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                 <div
                   key={clause.id}
                   onClick={() => handleClauseClick(clause)}
-                  className={`clause-item p-3 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
-                    clause.category === 'Red' 
+                  className={`clause-item p-3 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${clause.category === 'Red'
                       ? 'border-red-200 bg-red-50 hover:border-red-300'
                       : clause.category === 'Yellow'
-                      ? 'border-yellow-200 bg-yellow-50 hover:border-yellow-300'
-                      : 'border-green-200 bg-green-50 hover:border-green-300'
-                  } ${selectedClause?.id === clause.id ? 'ring-2 ring-blue-500' : ''}`}
+                        ? 'border-yellow-200 bg-yellow-50 hover:border-yellow-300'
+                        : 'border-green-200 bg-green-50 hover:border-green-300'
+                    } ${selectedClause?.id === clause.id ? 'ring-2 ring-blue-500' : ''}`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-2">
@@ -373,36 +368,34 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                       <span className="text-xs text-gray-500">
                         Page {clause.page_number}
                       </span>
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
-                        clause.category === 'Red' 
+                      <span className={`text-xs px-2 py-1 rounded font-medium ${clause.category === 'Red'
                           ? 'bg-red-100 text-red-800'
                           : clause.category === 'Yellow'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
                         {(clause.score * 100).toFixed(0)}% Risk
                       </span>
                     </div>
                   </div>
-                  
+
                   <p className="text-sm text-gray-700 mb-3 line-clamp-2">
                     {clause.text}
                   </p>
-                  
+
                   {/* Plain English Explanation */}
                   {clause.explanation && (
-                    <div className={`text-xs p-3 rounded-md border-l-4 ${
-                      clause.category === 'Red' 
+                    <div className={`text-xs p-3 rounded-md border-l-4 ${clause.category === 'Red'
                         ? 'bg-red-50 border-red-400 text-red-700'
                         : clause.category === 'Yellow'
-                        ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
-                        : 'bg-green-50 border-green-400 text-green-700'
-                    }`}>
+                          ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
+                          : 'bg-green-50 border-green-400 text-green-700'
+                      }`}>
                       <div className="font-medium mb-1">Plain English:</div>
                       {clause.explanation}
                     </div>
                   )}
-                  
+
                   {/* Click to highlight indicator */}
                   <div className="text-xs text-gray-400 mt-2 flex items-center">
                     <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -429,13 +422,12 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                     <div
                       key={clause.id}
                       onClick={() => handleClauseClick(clause)}
-                      className={`p-2 rounded cursor-pointer transition-colors ${
-                        clause.category === 'Red' 
+                      className={`p-2 rounded cursor-pointer transition-colors ${clause.category === 'Red'
                           ? 'bg-red-100 hover:bg-red-200 border-l-4 border-red-400'
                           : clause.category === 'Yellow'
-                          ? 'bg-yellow-100 hover:bg-yellow-200 border-l-4 border-yellow-400'
-                          : 'bg-green-100 hover:bg-green-200 border-l-4 border-green-400'
-                      }`}
+                            ? 'bg-yellow-100 hover:bg-yellow-200 border-l-4 border-yellow-400'
+                            : 'bg-green-100 hover:bg-green-200 border-l-4 border-green-400'
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-medium text-gray-700">
@@ -459,10 +451,10 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
           </div>
         )}
       </div>
-      
+
       {/* Report Generator - Always visible at bottom */}
       {clauses.length > 0 && (
-        <ReportGenerator 
+        <ReportGenerator
           clauses={clauses}
           documentSummary={documentSummary}
           fullAnalysis={fullAnalysis}
