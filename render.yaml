@@ -4,7 +4,7 @@ services:
     name: vidhived-backend
     env: python
     plan: free
-    buildCommand: "pip install -r backend/requirements-core.txt && pip install PyPDF2==3.0.1"
+    buildCommand: "pip install -r backend/requirements-minimal.txt"
     startCommand: "cd backend && gunicorn --config gunicorn.conf.py app:app"
     envVars:
       - key: FLASK_ENV
