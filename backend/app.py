@@ -402,7 +402,7 @@ Please provide a clear, accurate answer based on the document content."""
 def process_document_basic(doc_id: str, file_path: str):
     """Basic document processing without Google Cloud"""
     try:
-        logger.info(f"Starting basic document processing for {doc_id}")
+        logger.info(f"Starting basic document processing for {doc_id} at {file_path}")
         job_status[doc_id] = {"status": "processing", "message": "Processing document..."}
         
         # Basic text extraction (fallback without PyPDF2)
@@ -608,7 +608,25 @@ def process_document_async(doc_id: str, pdf_blob_name: str):
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    return jsonify({"status": "ok"})
+    return jsonify({
+        "status": "ok",
+        "google_cloud_available": GOOGLE_CLOUD_AVAILABLE,
+        "advanced_analysis_available": ADVANCED_ANALYSIS_AVAILABLE,
+        "image_processing_available": IMAGE_PROCESSING_AVAILABLE
+    })
+
+@app.route('/test', methods=['GET'])
+def test():
+    """Test endpoint"""
+    return jsonify({
+        "message": "Backend is working!",
+        "timestamp": datetime.utcnow().isoformat(),
+        "features": {
+            "google_cloud": GOOGLE_CLOUD_AVAILABLE,
+            "advanced_analysis": ADVANCED_ANALYSIS_AVAILABLE,
+            "image_processing": IMAGE_PROCESSING_AVAILABLE
+        }
+    })
 
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
@@ -668,9 +686,12 @@ def upload_pdf():
             thread.daemon = True
             thread.start()
             
+            # Get the base URL for the response
+            base_url = request.host_url.rstrip('/')
+            
             return jsonify({
                 "documentId": doc_id,
-                "pdfUrl": f"/pdf/{doc_id}",
+                "pdfUrl": f"{base_url}/pdf-file/{doc_id}",
                 "message": "File uploaded successfully. Basic analysis started."
             })
         
@@ -707,11 +728,35 @@ def serve_pdf(doc_id):
             if not os.path.exists(file_path):
                 return jsonify({"error": "PDF not found"}), 404
             
-            return send_file(file_path, mimetype='application/pdf')
+            # Return the full URL for the PDF endpoint
+            base_url = request.host_url.rstrip('/')
+            return jsonify({"pdfUrl": f"{base_url}/pdf-file/{doc_id}"})
         
     except Exception as e:
         logger.error(f"Failed to serve PDF {doc_id}: {e}")
         return jsonify({"error": "Failed to serve PDF"}), 500
+
+@app.route('/pdf-file/<doc_id>', methods=['GET'])
+def serve_pdf_file(doc_id):
+    """Serve the actual PDF file"""
+    try:
+        import os
+        temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
+        file_path = os.path.join(temp_dir, f"{doc_id}.pdf")
+        
+        if not os.path.exists(file_path):
+            return jsonify({"error": "PDF not found"}), 404
+        
+        response = send_file(file_path, mimetype='application/pdf')
+        # Add CORS headers for PDF files
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Failed to serve PDF file {doc_id}: {e}")
+        return jsonify({"error": "Failed to serve PDF file"}), 500
 
 @app.route('/document/<doc_id>', methods=['GET'])
 def get_document_status(doc_id):
