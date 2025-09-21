@@ -80,10 +80,10 @@ Use `render-full-ai.yaml` for complete AI features:
 
 | Option | Build Time | AI Features | Dependencies | Best For |
 |--------|------------|-------------|--------------|----------|
-| `render.yaml` | 3-5 min | Basic only | Minimal | **Recommended - Fast & Reliable** |
-| `render-fast.yaml` | 3-5 min | Basic only | Minimal | Same as above |
+| `render.yaml` | 1-2 min | Basic | Core Flask only | **Recommended - Ultra Fast & Reliable** |
+| `render-core.yaml` | 1-2 min | Basic | Core Flask only | Same as above |
+| `render-fast.yaml` | 3-5 min | Basic + PDF | Minimal | PDF processing |
 | `render-full-ai.yaml` | 15-20 min | Full AI | All packages | Advanced AI features |
-| `render-free.yaml` | 15-20 min | Full AI | All packages | Alternative full config |
 
 ## Google Cloud Setup (OPTIONAL)
 

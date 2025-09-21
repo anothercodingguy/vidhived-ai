@@ -11,6 +11,15 @@ import threading
 import re
 from typing import List, Dict, Any
 
+# Optional imports for image processing
+try:
+    import numpy as np
+    from PIL import Image
+    IMAGE_PROCESSING_AVAILABLE = True
+except ImportError:
+    IMAGE_PROCESSING_AVAILABLE = False
+    print("Image processing libraries not available - using basic mode")
+
 # Optional imports for AI features
 try:
     from google.cloud import storage, vision, aiplatform

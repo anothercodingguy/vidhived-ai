@@ -1,11 +1,9 @@
-# Minimal requirements for basic functionality (faster build)
+# Ultra-minimal requirements for basic functionality (fastest build)
 Flask==3.0.0
 gunicorn==21.2.0
 flask-cors==4.0.0
 python-dotenv==1.0.0
 PyPDF2==3.0.1
-Pillow==10.0.0
-numpy==1.24.0
 
 # Optional: Add these if you want AI features (slower build)
 # google-cloud-vision==3.4.5
