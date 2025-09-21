@@ -13,11 +13,15 @@ services:
         value: 10000
     healthCheckPath: /health
 
-  # Frontend as Static Site (Completely Free)
-  - type: static
+  # Frontend Next.js App (Free Tier - Web Service)
+  - type: web
     name: vidhived-frontend
-    buildCommand: "cd frontend && npm install && npm run build && npm run export"
-    staticPublishPath: frontend/out
+    env: node
+    plan: free
+    buildCommand: "cd frontend && npm install && npm run build"
+    startCommand: "cd frontend && npm start"
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: NEXT_PUBLIC_API_URL
         value: https://vidhived-backend.onrender.com
