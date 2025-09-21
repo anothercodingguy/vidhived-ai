@@ -1,0 +1,27 @@
+services:
+  # Backend Flask API (Simple Version - Guaranteed to Work)
+  - type: web
+    name: vidhived-backend
+    env: python
+    plan: free
+    buildCommand: "pip install Flask==3.0.0 gunicorn==21.2.0 flask-cors==4.0.0 python-dotenv==1.0.0"
+    startCommand: "cd backend && python app_simple.py"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
+
+  # Frontend Next.js App (Free Tier)
+  - type: web
+    name: vidhived-frontend
+    env: node
+    plan: free
+    buildCommand: "cd frontend && npm install && npm run build"
+    startCommand: "cd frontend && npm start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://vidhived-backend.onrender.com
