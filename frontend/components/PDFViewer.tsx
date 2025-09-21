@@ -98,55 +98,34 @@ export default function PDFViewer({ pdfUrl, clauses, highlightedClause }: PDFVie
     if (!pages.length) return null
 
     return clauses.map(clause => {
-      const pageIndex = clause.page_number - 1
-      if (pageIndex < 0 || pageIndex >= pages.length) return null
+      const pageCanvas = pages[clause.page_number - 1]
+      if (!pageCanvas) return null
+
+      const canvasRect = pageCanvas.getBoundingClientRect()
+      const scaleX = canvasRect.width / clause.ocr_page_width
+      const scaleY = canvasRect.height / clause.ocr_page_height
 
       const vertices = clause.bounding_box.vertices
       if (!vertices || vertices.length < 4) return null
 
-      const left = Math.min(...vertices.map(v => v.x))
-      const top = Math.min(...vertices.map(v => v.y))
-      const right = Math.max(...vertices.map(v => v.x))
-      const bottom = Math.max(...vertices.map(v => v.y))
-
-      const width = right - left
-      const height = bottom - top
-
-      // Calculate position relative to the page
-      const scaleX = 1.5 // Match the PDF rendering scale
-      const scaleY = 1.5
+      const left = Math.min(...vertices.map(v => v.x)) * scaleX
+      const top = Math.min(...vertices.map(v => v.y)) * scaleY
+      const right = Math.max(...vertices.map(v => v.x)) * scaleX
+      const bottom = Math.max(...vertices.map(v => v.y)) * scaleY
 
       return (
         <div
           key={clause.id}
           data-clause-id={clause.id}
-          className={`absolute cursor-pointer transition-all duration-300 border-2 ${
-            clause.category === 'Red' 
-              ? 'border-red-500 bg-red-100 bg-opacity-30 hover:bg-opacity-50'
-              : clause.category === 'Yellow'
-              ? 'border-yellow-500 bg-yellow-100 bg-opacity-30 hover:bg-opacity-50'
-              : 'border-green-500 bg-green-100 bg-opacity-30 hover:bg-opacity-50'
-          } ${highlightedClause === clause.id ? 'ring-4 ring-blue-500 bg-blue-100 bg-opacity-50' : ''}`}
+          className="pdf-bbox"
           style={{
-            left: `${left * scaleX}px`,
-            top: `${top * scaleY}px`,
-            width: `${width * scaleX}px`,
-            height: `${height * scaleY}px`,
+            left: `${left}px`,
+            top: `${top}px`,
+            width: `${right - left}px`,
+            height: `${bottom - top}px`,
           }}
-          onClick={() => scrollToClause(clause.id)}
-          title={`${clause.category} Risk: ${clause.text.substring(0, 100)}...`}
-        >
-          {/* Risk indicator */}
-          <div className={`absolute -top-2 -left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-            clause.category === 'Red' 
-              ? 'bg-red-500 text-white'
-              : clause.category === 'Yellow'
-              ? 'bg-yellow-500 text-white'
-              : 'bg-green-500 text-white'
-          }`}>
-            {clause.category === 'Red' ? '!' : clause.category === 'Yellow' ? '?' : '✓'}
-          </div>
-        </div>
+          title={`${clause.type}: ${clause.text.substring(0, 100)}...`}
+        />
       )
     })
   }
@@ -177,71 +156,16 @@ export default function PDFViewer({ pdfUrl, clauses, highlightedClause }: PDFVie
     <div ref={containerRef} className="pdf-container h-full overflow-auto bg-gray-100 p-4">
       <div className="max-w-4xl mx-auto">
         {pages.map((canvas, index) => (
-          <div key={index} id={`pdf-page-${index + 1}`} className="pdf-page mb-4 relative bg-white shadow-lg p-4">
+          <div key={index} className="pdf-page mb-4 relative bg-white shadow-lg">
             <div
               ref={el => {
                 if (el && canvas.parentNode !== el) {
                   el.appendChild(canvas)
                 }
               }}
-              className="relative inline-block"
+              className="relative"
             />
-            {/* Render bounding boxes for this specific page */}
-            <div className="absolute inset-4 pointer-events-none">
-              <div className="relative w-full h-full pointer-events-auto">
-                {clauses
-                  .filter(clause => clause.page_number === index + 1)
-                  .map(clause => {
-                    const vertices = clause.bounding_box.vertices
-                    if (!vertices || vertices.length < 4) return null
-
-                    const left = Math.min(...vertices.map(v => v.x))
-                    const top = Math.min(...vertices.map(v => v.y))
-                    const right = Math.max(...vertices.map(v => v.x))
-                    const bottom = Math.max(...vertices.map(v => v.y))
-
-                    const width = right - left
-                    const height = bottom - top
-
-                    // Scale to match PDF rendering
-                    const scaleX = 1.5
-                    const scaleY = 1.5
-
-                    return (
-                      <div
-                        key={clause.id}
-                        data-clause-id={clause.id}
-                        className={`absolute cursor-pointer transition-all duration-300 border-2 rounded ${
-                          clause.category === 'Red' 
-                            ? 'border-red-500 bg-red-100 bg-opacity-30 hover:bg-opacity-60'
-                            : clause.category === 'Yellow'
-                            ? 'border-yellow-500 bg-yellow-100 bg-opacity-30 hover:bg-opacity-60'
-                            : 'border-green-500 bg-green-100 bg-opacity-30 hover:bg-opacity-60'
-                        } ${highlightedClause === clause.id ? 'ring-4 ring-blue-500 bg-blue-100 bg-opacity-70 animate-pulse' : ''}`}
-                        style={{
-                          left: `${left * scaleX}px`,
-                          top: `${top * scaleY}px`,
-                          width: `${width * scaleX}px`,
-                          height: `${height * scaleY}px`,
-                        }}
-                        onClick={() => scrollToClause(clause.id)}
-                        title={`${clause.category} Risk - ${clause.type}: ${clause.text.substring(0, 100)}...`}
-                      >
-                        {/* Risk indicator */}
-                        <div className={`absolute -top-3 -left-3 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-lg ${
-                          clause.category === 'Red' 
-                            ? 'bg-red-500 text-white'
-                            : clause.category === 'Yellow'
-                            ? 'bg-yellow-500 text-white'
-                            : 'bg-green-500 text-white'
-                        }`}>
-                          {clause.category === 'Red' ? '!' : clause.category === 'Yellow' ? '?' : '✓'}
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            </div>
+            {renderBoundingBoxes()}
           </div>
         ))}
       </div>
