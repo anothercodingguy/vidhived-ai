@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.pdf-bbox {
+  position: absolute;
+  border: 2px solid orange;
+  background: rgba(255, 165, 0, 0.1);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pdf-bbox.highlight {
+  box-shadow: 0 0 10px gold;
+  border-color: gold;
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.pdf-container {
+  position: relative;
+  overflow: auto;
+}
+
+.pdf-page {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.clause-item {
+  @apply p-3 border rounded-lg cursor-pointer transition-colors;
+}
+
+.clause-item:hover {
+  @apply bg-gray-50;
+}
+
+.clause-item.red {
+  @apply border-red-300 bg-red-50;
+}
+
+.clause-item.yellow {
+  @apply border-yellow-300 bg-yellow-50;
+}
+
+.clause-item.green {
+  @apply border-green-300 bg-green-50;
+}
