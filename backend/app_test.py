@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -87,24 +88,42 @@ def get_pdf_url(doc_id):
         print(f"Doc ID: {doc_id}")
         print(f"Request headers: {dict(request.headers)}")
         print(f"Request method: {request.method}")
+        print(f"Request URL: {request.url}")
         print(f"Available docs: {list(docs.keys())}")
         
-        if doc_id not in docs:
-            print(f"Doc {doc_id} not found in docs")
-            return jsonify({"error": "Document not found"}), 404
-        
+        # Always return JSON regardless of whether doc exists (for testing)
         response_data = {
-            "pdfUrl": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+            "pdfUrl": "data:text/plain;charset=utf-8,This%20is%20a%20test%20PDF%20response",
+            "docId": doc_id,
+            "found": doc_id in docs,
+            "test": "This is definitely JSON"
         }
         print(f"Returning JSON: {response_data}")
         
         response = jsonify(response_data)
         response.headers['Content-Type'] = 'application/json'
+        response.headers['Access-Control-Allow-Origin'] = '*'
         return response
         
     except Exception as e:
         print(f"PDF URL error: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/test-json', methods=['GET'])
+def test_json():
+    """Simple test endpoint to verify JSON responses work"""
+    print("=== TEST JSON ENDPOINT CALLED ===")
+    return jsonify({"message": "JSON response working", "timestamp": str(datetime.now())})
+
+@app.route('/debug-docs', methods=['GET'])
+def debug_docs():
+    """Debug endpoint to show all documents"""
+    print("=== DEBUG DOCS ENDPOINT CALLED ===")
+    return jsonify({
+        "total_docs": len(docs),
+        "doc_ids": list(docs.keys()),
+        "docs": docs
+    })
 
 @app.route('/ask', methods=['POST'])
 def ask():
