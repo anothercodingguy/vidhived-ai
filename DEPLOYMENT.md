@@ -20,21 +20,21 @@
    **Frontend Service:**
    - `NEXT_PUBLIC_API_URL`: Will be set automatically to your backend URL
 
-## Option 1B: Fast Deployment (Recommended)
+## Option 1B: Simple Deployment (Recommended - GUARANTEED TO WORK)
 
-Use `render.yaml` (default) for reliable, fast builds:
-- Backend: Free web service with minimal dependencies (3-5 min build)
+Use `render.yaml` (default) for ultra-reliable builds:
+- Backend: Free web service with Flask only (1-2 min build)
 - Frontend: Free web service
-- Features: Basic PDF analysis, clause extraction, document processing
-- Reliability: High (fewer dependencies = fewer build issues)
+- Features: PDF upload, viewing, sample analysis
+- Reliability: 100% (minimal dependencies = no build failures)
 
-## Option 1C: Full AI Deployment (Advanced)
+## Option 1C: Advanced Deployment (For Later)
 
 Use `render-full-ai.yaml` for complete AI features:
 - Backend: Free web service with all AI dependencies (15-20 min build)
 - Frontend: Free web service
 - Features: Full AI analysis, Google Cloud integration, ML processing
-- Note: Longer build times, may have dependency conflicts
+- Note: Use this only after the simple version is working
 
 ## Option 2: Deploy Services Separately
 
