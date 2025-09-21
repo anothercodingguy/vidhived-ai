@@ -20,11 +20,18 @@
    **Frontend Service:**
    - `NEXT_PUBLIC_API_URL`: Will be set automatically to your backend URL
 
-## Option 1B: Alternative Free Configuration
+## Option 1B: Fast Deployment (Minimal Dependencies)
 
-Use `render-free.yaml` for the same free deployment with identical configuration:
-- Backend: Free web service (sleeps after 15 min of inactivity)
-- Frontend: Free web service (sleeps after 15 min of inactivity)
+Use `render-fast.yaml` for faster builds with basic functionality:
+- Backend: Free web service with minimal dependencies (faster build)
+- Frontend: Free web service (same as above)
+- Build time: ~3-5 minutes vs ~15-20 minutes for full version
+
+## Option 1C: Alternative Free Configuration
+
+Use `render-free.yaml` for the same free deployment with full AI features:
+- Backend: Free web service with all AI dependencies
+- Frontend: Free web service
 
 ## Option 2: Deploy Services Separately
 
@@ -65,6 +72,14 @@ Use `render-free.yaml` for the same free deployment with identical configuration
    ```
    NEXT_PUBLIC_API_URL=https://your-backend-service.onrender.com
    ```
+
+## Deployment Options Summary
+
+| Option | Build Time | AI Features | Dependencies | Best For |
+|--------|------------|-------------|--------------|----------|
+| `render.yaml` | 15-20 min | Full AI | All packages | Production with AI |
+| `render-fast.yaml` | 3-5 min | Basic only | Minimal | Quick testing |
+| `render-free.yaml` | 15-20 min | Full AI | All packages | Alternative config |
 
 ## Google Cloud Setup (OPTIONAL)
 

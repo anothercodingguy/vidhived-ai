@@ -7,16 +7,28 @@ from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
-from google.cloud import storage, vision, aiplatform
-from google.cloud.vision_v1 import types
-from google import genai
-from google.genai import types as genai_types
 import threading
 import re
 from typing import List, Dict, Any
 
-# Import advanced legal analysis components
-from legal_analysis.advanced_analyzer import AdvancedLegalAnalyzer
+# Optional imports for AI features
+try:
+    from google.cloud import storage, vision, aiplatform
+    from google.cloud.vision_v1 import types
+    from google import genai
+    from google.genai import types as genai_types
+    GOOGLE_CLOUD_AVAILABLE = True
+except ImportError:
+    GOOGLE_CLOUD_AVAILABLE = False
+    print("Google Cloud libraries not available - using fallback mode")
+
+# Optional import for advanced legal analysis
+try:
+    from legal_analysis.advanced_analyzer import AdvancedLegalAnalyzer
+    ADVANCED_ANALYSIS_AVAILABLE = True
+except ImportError:
+    ADVANCED_ANALYSIS_AVAILABLE = False
+    print("Advanced legal analysis not available - using basic mode")
 
 # Load environment variables
 load_dotenv()
@@ -38,34 +50,50 @@ GCP_REGION = os.getenv('GCP_REGION', 'us-central1')
 GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME')
 GOOGLE_CLOUD_API_KEY = os.getenv('GOOGLE_CLOUD_API_KEY')
 
-# Initialize GCP clients
-try:
-    storage_client = storage.Client(project=GCP_PROJECT_ID)
-    vision_client = vision.ImageAnnotatorClient()
-    bucket = storage_client.bucket(GCS_BUCKET_NAME)
-    
-    # Initialize Vertex AI
-    aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION)
-    
-    # Initialize Gemini AI client
-    if GOOGLE_CLOUD_API_KEY:
-        gemini_client = genai.Client(
-            vertexai=True,
-            api_key=GOOGLE_CLOUD_API_KEY
-        )
-        logger.info("Gemini AI client initialized successfully")
-    else:
+# Initialize GCP clients (optional)
+storage_client = None
+vision_client = None
+bucket = None
+gemini_client = None
+advanced_analyzer = None
+
+if GOOGLE_CLOUD_AVAILABLE:
+    try:
+        storage_client = storage.Client(project=GCP_PROJECT_ID)
+        vision_client = vision.ImageAnnotatorClient()
+        if GCS_BUCKET_NAME:
+            bucket = storage_client.bucket(GCS_BUCKET_NAME)
+        
+        # Initialize Vertex AI
+        if GCP_PROJECT_ID:
+            aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION)
+        
+        # Initialize Gemini AI client
+        if GOOGLE_CLOUD_API_KEY:
+            gemini_client = genai.Client(
+                vertexai=True,
+                api_key=GOOGLE_CLOUD_API_KEY
+            )
+            logger.info("Gemini AI client initialized successfully")
+        else:
+            logger.warning("GOOGLE_CLOUD_API_KEY not provided, Gemini AI features disabled")
+        
+        logger.info("GCP clients initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize GCP clients: {e}")
+        storage_client = None
+        vision_client = None
+        bucket = None
         gemini_client = None
-        logger.warning("GOOGLE_CLOUD_API_KEY not provided, Gemini AI features disabled")
-    
-    # Initialize Advanced Legal Analyzer
-    advanced_analyzer = AdvancedLegalAnalyzer()
-    
-    logger.info("GCP clients initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize GCP clients: {e}")
-    storage_client = None
-    vision_client = None
+
+# Initialize Advanced Legal Analyzer (optional)
+if ADVANCED_ANALYSIS_AVAILABLE:
+    try:
+        advanced_analyzer = AdvancedLegalAnalyzer()
+        logger.info("Advanced Legal Analyzer initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Advanced Legal Analyzer: {e}")
+        advanced_analyzer = None
     bucket = None
     gemini_client = None
     advanced_analyzer = None
