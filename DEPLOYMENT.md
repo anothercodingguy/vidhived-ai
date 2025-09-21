@@ -1,58 +1,74 @@
-# Deployment Guide for Render
+# Deployment Guide for Render (FREE TIER)
 
-## Option 1: Deploy using render.yaml (Recommended)
+## Option 1: Deploy using render.yaml (FREE - Recommended)
 
 1. **Connect your GitHub repository to Render:**
-   - Go to [render.com](https://render.com) and sign up/login
+   - Go to [render.com](https://render.com) and sign up/login (NO PAYMENT REQUIRED)
    - Click "New" → "Blueprint"
    - Connect your GitHub account and select this repository
    - Render will automatically detect the `render.yaml` file
+   - Both services will deploy on the **FREE TIER**
 
-2. **Set Environment Variables:**
+2. **Set Environment Variables (Optional for basic functionality):**
    
    **Backend Service:**
-   - `GOOGLE_CLOUD_PROJECT_ID`: Your Google Cloud project ID
-   - `GOOGLE_CLOUD_API_KEY`: Your Google Cloud API key
-   - `GOOGLE_CLOUD_STORAGE_BUCKET`: Your GCS bucket name
-   - `FLASK_ENV`: `production`
+   - `GOOGLE_CLOUD_PROJECT_ID`: Your Google Cloud project ID (optional)
+   - `GOOGLE_CLOUD_API_KEY`: Your Google Cloud API key (optional)
+   - `GOOGLE_CLOUD_STORAGE_BUCKET`: Your GCS bucket name (optional)
+   - `FLASK_ENV`: `production` (already set)
    
    **Frontend Service:**
    - `NEXT_PUBLIC_API_URL`: Will be set automatically to your backend URL
 
+## Option 1B: Ultra-Free Deployment (Static Frontend)
+
+Use `render-free.yaml` instead for completely free hosting:
+- Backend: Free web service (sleeps after 15 min of inactivity)
+- Frontend: Free static site hosting (never sleeps)
+
 ## Option 2: Deploy Services Separately
 
-### Backend Deployment
+### Backend Deployment (FREE)
 
 1. **Create a new Web Service:**
    - Repository: Your GitHub repo
+   - **Plan: FREE** (select this explicitly)
    - Build Command: `pip install -r backend/requirements.txt && python -m spacy download en_core_web_sm`
    - Start Command: `cd backend && gunicorn --config gunicorn.conf.py app:app`
    - Environment: `Python 3`
 
-2. **Environment Variables:**
+2. **Environment Variables (Optional):**
    ```
-   GOOGLE_CLOUD_PROJECT_ID=your-project-id
-   GOOGLE_CLOUD_API_KEY=your-api-key
-   GOOGLE_CLOUD_STORAGE_BUCKET=your-bucket-name
    FLASK_ENV=production
    PORT=10000
    ```
 
-### Frontend Deployment
+### Frontend Deployment (FREE)
 
+**Option A: Web Service (FREE)**
 1. **Create a new Web Service:**
    - Repository: Your GitHub repo
+   - **Plan: FREE** (select this explicitly)
    - Build Command: `cd frontend && npm install && npm run build`
    - Start Command: `cd frontend && npm start`
    - Environment: `Node`
 
+**Option B: Static Site (COMPLETELY FREE - Recommended)**
+1. **Create a new Static Site:**
+   - Repository: Your GitHub repo
+   - Build Command: `cd frontend && npm install && npm run export`
+   - Publish Directory: `frontend/out`
+
 2. **Environment Variables:**
    ```
    NEXT_PUBLIC_API_URL=https://your-backend-service.onrender.com
-   NODE_ENV=production
    ```
 
-## Required Google Cloud Setup
+## Google Cloud Setup (OPTIONAL)
+
+**The app works without Google Cloud - it will use fallback analysis methods.**
+
+If you want full AI features:
 
 1. **Enable APIs:**
    - Cloud Vision API
@@ -67,6 +83,11 @@
 3. **Create Storage Bucket:**
    - Create a GCS bucket for file storage
    - Set appropriate permissions
+
+**Without Google Cloud:**
+- Basic legal analysis still works
+- Uses local NLP processing
+- File upload works with temporary storage
 
 ## Health Checks
 
@@ -89,9 +110,22 @@
    - Ensure frontend URL is added to CORS origins in backend
    - Check that API_URL environment variable is correct
 
-## Performance Optimization
+## Free Tier Limitations & Optimizations
 
-- Backend uses Gunicorn with optimized worker configuration
-- Frontend is built with Next.js production optimizations
-- Static assets are served efficiently
+**Free Tier Includes:**
+- ✅ 750 hours/month of runtime (enough for most projects)
+- ✅ Automatic HTTPS
+- ✅ Custom domains
+- ✅ Git-based deployments
+
+**Limitations:**
+- 🔄 Services sleep after 15 minutes of inactivity
+- ⏱️ Cold start delay (10-30 seconds) when waking up
+- 💾 Limited memory and CPU
+- 📊 Basic metrics only
+
+**Optimizations Applied:**
+- Backend uses optimized Gunicorn configuration for free tier
+- Frontend can be deployed as static site (never sleeps)
 - Health checks ensure service availability
+- Efficient resource usage to stay within limits
