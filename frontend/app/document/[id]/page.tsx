@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getDocumentStatus, getPDFUrl, DocumentAnalysis } from '@/lib/api'
-import PDFViewer from '@/components/PDFViewer'
+import PdfViewer from '@/components/PDFViewer'
 import AnalysisSidebar from '@/components/AnalysisSidebar'
 import AskPanel from '@/components/AskPanel'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -17,7 +17,8 @@ export default function DocumentPage() {
   const [pdfUrl, setPdfUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [highlightedClause, setHighlightedClause] = useState<string>()
+  const [highlightedClause, setHighlightedClause] = useState<string | null>(null)
+  const [showOverlays, setShowOverlays] = useState(true)
 
   useEffect(() => {
     if (documentId) {
@@ -172,10 +173,11 @@ export default function DocumentPage() {
         {/* PDF Viewer - Left Half */}
         <div className="w-1/2 border-r border-gray-200 dark:border-gray-700">
           {pdfUrl ? (
-            <PDFViewer
+            <PdfViewer
               pdfUrl={pdfUrl}
               clauses={analysis?.analysis || []}
-              highlightedClause={highlightedClause}
+              onClauseClick={setHighlightedClause}
+              showOverlays={showOverlays}
             />
           ) : (
             <div className="flex items-center justify-center h-full">

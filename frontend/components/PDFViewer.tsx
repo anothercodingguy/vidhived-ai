@@ -1,174 +1,136 @@
-'use client'
+import React, { useRef, useEffect, useState } from 'react';
+import { usePdfViewer } from '@/hooks/usePdfViewer';
+import PdfOverlay from './PdfOverlay';
+import type { Clause } from '@/lib/api';
 
-import { useEffect, useRef, useState } from 'react'
-import * as pdfjsLib from 'pdfjs-dist'
-import { Clause } from '@/lib/api'
-
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-
-interface PDFViewerProps {
-  pdfUrl: string
-  clauses: Clause[]
-  highlightedClause?: string
+interface PdfViewerProps {
+  pdfUrl: string;
+  clauses: Clause[];
+  onClauseClick?: (clauseId: string) => void;
+  initialScale?: number;
+  showOverlays?: boolean;
 }
 
-export default function PDFViewer({ pdfUrl, clauses, highlightedClause }: PDFViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [pdf, setPdf] = useState<any>(null)
-  const [pages, setPages] = useState<HTMLCanvasElement[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+export const PdfViewer: React.FC<PdfViewerProps> = ({
+  pdfUrl,
+  clauses,
+  onClauseClick,
+  initialScale = 1.0,
+  showOverlays = true
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const {
+    pdf,
+    numPages,
+    pageData,
+    scale,
+    setScale,
+    loading,
+    error,
+    overlays,
+    highlightedClauseId,
+    setHighlightedClauseId,
+    searchTerm,
+    setSearchTerm,
+    searchResults,
+    searchIndex,
+    setSearchIndex,
+    addAnnotation,
+    annotations,
+  } = usePdfViewer({ pdfUrl, clauses, initialScale });
 
+  // Resize observer for container
   useEffect(() => {
-    loadPDF()
-  }, [pdfUrl])
+    if (!containerRef.current) return;
+    const handleResize = () => {
+      setContainerWidth(containerRef.current!.offsetWidth);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
+  // Render PDF pages
   useEffect(() => {
-    if (highlightedClause && pages.length > 0) {
-      scrollToClause(highlightedClause)
-    }
-  }, [highlightedClause, pages])
-
-  const loadPDF = async () => {
-    try {
-      setLoading(true)
-      setError('')
-
-      const loadingTask = pdfjsLib.getDocument(pdfUrl)
-      const pdfDoc = await loadingTask.promise
-      setPdf(pdfDoc)
-
-      // Render all pages
-      const pageElements: HTMLCanvasElement[] = []
-      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-        const page = await pdfDoc.getPage(pageNum)
-        const canvas = await renderPage(page, pageNum)
-        pageElements.push(canvas)
+    if (!pdf || !pageData.length) return;
+    pageData.forEach(async (pd, idx) => {
+      const page = await pdf.getPage(pd.pageNumber);
+      const viewport = page.getViewport({ scale });
+      pd.page = page;
+      pd.viewport = viewport;
+      // Render canvas
+      if (pd.canvasRef.current) {
+        const canvas = pd.canvasRef.current;
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context!, viewport } as any).promise;
       }
-      setPages(pageElements)
-    } catch (err) {
-      console.error('Error loading PDF:', err)
-      setError('Failed to load PDF')
-    } finally {
-      setLoading(false)
-    }
-  }
+    });
+  }, [pdf, pageData, scale]);
 
-  const renderPage = async (page: any, pageNum: number): Promise<HTMLCanvasElement> => {
-    const viewport = page.getViewport({ scale: 1.5 })
-    const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')!
+  // Overlay hover/click handlers
+  const handleOverlayHover = (clauseId: string | null) => {
+    setHighlightedClauseId(clauseId);
+  };
+  const handleOverlayClick = (clauseId: string) => {
+    setHighlightedClauseId(clauseId);
+    if (onClauseClick) onClauseClick(clauseId);
+  };
 
-    canvas.height = viewport.height
-    canvas.width = viewport.width
-    canvas.id = `pdf-page-${pageNum}`
-
-    const renderContext = {
-      canvasContext: context,
-      viewport: viewport,
-    }
-
-    await page.render(renderContext).promise
-    return canvas
-  }
-
-  const scrollToClause = (clauseId: string) => {
-    const clause = clauses.find(c => c.id === clauseId)
-    if (!clause || !containerRef.current) return
-
-    const pageElement = containerRef.current.querySelector(`#pdf-page-${clause.page_number}`)
-    if (pageElement) {
-      pageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      
-      // Highlight the clause temporarily
-      setTimeout(() => {
-        const bboxElement = containerRef.current?.querySelector(`[data-clause-id="${clauseId}"]`)
-        if (bboxElement) {
-          bboxElement.classList.add('highlight')
-          setTimeout(() => {
-            bboxElement.classList.remove('highlight')
-          }, 2000)
-        }
-      }, 500)
-    }
-  }
-
-  const renderBoundingBoxes = () => {
-    if (!pages.length) return null
-
-    return clauses.map(clause => {
-      const pageCanvas = pages[clause.page_number - 1]
-      if (!pageCanvas) return null
-
-      const canvasRect = pageCanvas.getBoundingClientRect()
-      const scaleX = canvasRect.width / clause.ocr_page_width
-      const scaleY = canvasRect.height / clause.ocr_page_height
-
-      const vertices = clause.bounding_box.vertices
-      if (!vertices || vertices.length < 4) return null
-
-      const left = Math.min(...vertices.map(v => v.x)) * scaleX
-      const top = Math.min(...vertices.map(v => v.y)) * scaleY
-      const right = Math.max(...vertices.map(v => v.x)) * scaleX
-      const bottom = Math.max(...vertices.map(v => v.y)) * scaleY
-
-      return (
-        <div
-          key={clause.id}
-          data-clause-id={clause.id}
-          className="pdf-bbox"
-          style={{
-            left: `${left}px`,
-            top: `${top}px`,
-            width: `${right - left}px`,
-            height: `${bottom - top}px`,
-          }}
-          title={`${clause.type}: ${clause.text.substring(0, 100)}...`}
-        />
-      )
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading PDF...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center text-red-600">
-          <p className="text-lg font-medium">Error loading PDF</p>
-          <p className="text-sm">{error}</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <div className="pdf-loading">Loading PDF…</div>;
+  if (error) return <div className="pdf-error">{error}</div>;
 
   return (
-    <div ref={containerRef} className="pdf-container h-full overflow-auto bg-gray-100 p-4">
-      <div className="max-w-4xl mx-auto">
-        {pages.map((canvas, index) => (
-          <div key={index} className="pdf-page mb-4 relative bg-white shadow-lg">
-            <div
-              ref={el => {
-                if (el && canvas.parentNode !== el) {
-                  el.appendChild(canvas)
-                }
-              }}
-              className="relative"
-            />
-            {renderBoundingBoxes()}
+    <div className="pdf-viewer-container" ref={containerRef}>
+      <div className="pdf-toolbar">
+        <button onClick={() => setScale(s => Math.max(0.5, s - 0.1))}>-</button>
+        <span>{(scale * 100).toFixed(0)}%</span>
+        <button onClick={() => setScale(s => Math.min(3, s + 0.1))}>+</button>
+        <input
+          type="text"
+          placeholder="Search clauses…"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="pdf-search-box"
+        />
+        {searchResults.length > 0 && (
+          <span className="pdf-search-nav">
+            <button onClick={() => setSearchIndex(i => Math.max(0, i - 1))}>&uarr;</button>
+            <span>{searchIndex + 1}/{searchResults.length}</span>
+            <button onClick={() => setSearchIndex(i => Math.min(searchResults.length - 1, i + 1))}>&darr;</button>
+          </span>
+        )}
+        <label style={{ marginLeft: 16 }}>
+          <input type="checkbox" checked={showOverlays} readOnly /> Overlays
+        </label>
+      </div>
+      <div className="pdf-pages">
+        {pageData.map((pd, idx) => (
+          <div
+            key={pd.pageNumber}
+            className="pdf-page-container"
+            style={{ position: 'relative', margin: '0 auto 24px', width: pd.viewport?.width, height: pd.viewport?.height }}
+          >
+            <canvas ref={pd.canvasRef} style={{ width: '100%', height: 'auto', display: 'block' }} />
+            {/* Overlay for this page */}
+            {overlays[pd.pageNumber] && (
+              <PdfOverlay
+                overlays={overlays[pd.pageNumber]}
+                scale={scale}
+                onHover={handleOverlayHover}
+                onClick={handleOverlayClick}
+                highlightedClauseId={highlightedClauseId}
+                annotations={annotations}
+                showOverlays={showOverlays}
+              />
+            )}
           </div>
         ))}
       </div>
     </div>
-  )
-}
+  );
+};
+
+export default PdfViewer;

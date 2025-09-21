@@ -1,4 +1,30 @@
+
+// pdf.js and overlay features assume backend returns ocr_page_width/height and bounding_box per clause.
+// If not present, overlays will be disabled for that clause.
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+// Helper to fetch both PDF URL and clause metadata for a document
+export async function fetchPdfAndClauses(documentId: string): Promise<{ pdfUrl: string, clauses: Clause[], analysis: DocumentAnalysis }>
+{
+  // Fetch document analysis (includes clause metadata)
+  const analysis = await getDocumentStatus(documentId);
+  let pdfUrl = '';
+  // Prefer pdfUrl from analysis if present, else fetch
+  if (analysis && (analysis as any).pdfUrl) {
+    pdfUrl = (analysis as any).pdfUrl;
+  } else {
+    try {
+      const pdfRes = await getPDFUrl(documentId);
+      pdfUrl = pdfRes.pdfUrl;
+    } catch (e) {
+      pdfUrl = '';
+    }
+  }
+  return {
+    pdfUrl,
+    clauses: analysis.analysis || [],
+    analysis
+  };
+}
 
 export interface UploadResponse {
   documentId: string
@@ -6,19 +32,22 @@ export interface UploadResponse {
   message: string
 }
 
+// Clause metadata for overlays (from backend)
 export interface Clause {
   id: string
-  page_number: number
+  page_number: number // 1-indexed
   text: string
-  bounding_box: {
+  bounding_box?: {
     vertices: Array<{ x: number; y: number }>
   }
-  ocr_page_width: number
-  ocr_page_height: number
+  ocr_page_width?: number
+  ocr_page_height?: number
   score: number
   category: 'Red' | 'Yellow' | 'Green'
   type: string
   explanation: string
+  // Optionally, add annotation?: string for frontend notes
+  annotation?: string
 }
 
 export interface DocumentAnalysis {
