@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getDocument, GlobalWorkerOptions, PDFDocumentProxy, PDFPageProxy, RenderParameters } from 'pdfjs-dist/legacy/build/pdf';
+import { getDocument, GlobalWorkerOptions, PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf';
 import type { Clause } from '@/lib/api';
 
 // Set workerSrc for pdfjs
