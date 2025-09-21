@@ -15,6 +15,7 @@ interface AnalysisSidebarProps {
 
 export default function AnalysisSidebar({ clauses, onClauseClick, documentSummary, fullAnalysis, advancedAnalysis }: AnalysisSidebarProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
+  // Fixed TypeScript error - only using summary, clauses, categories tabs
   const [activeTab, setActiveTab] = useState<'summary' | 'clauses' | 'categories'>('summary')
   const [selectedClause, setSelectedClause] = useState<Clause | null>(null)
 
@@ -111,8 +112,8 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
           <button
             onClick={() => setActiveTab('summary')}
             className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'summary'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-primary-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
           >
             Summary
@@ -120,8 +121,8 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
           <button
             onClick={() => setActiveTab('clauses')}
             className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'clauses'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-primary-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
           >
             Clauses ({clauses.length})
@@ -129,8 +130,8 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
           <button
             onClick={() => setActiveTab('categories')}
             className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'categories'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-primary-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
           >
             Categories
@@ -166,8 +167,8 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                   key={category}
                   onClick={() => setSelectedCategory(category)}
                   className={`px-3 py-1 text-xs rounded-full border transition-colors ${selectedCategory === category
-                      ? 'bg-primary-600 text-white border-primary-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                     }`}
                 >
                   {category}
@@ -242,8 +243,8 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
               </div>
             )}
           </div>
-        ) : activeTab === 'entities' ? (
-          /* Entities View */
+        ) : activeTab === 'categories' ? (
+          /* Categories View */
           <div className="space-y-4">
             {advancedAnalysis?.summary ? (
               <div className="space-y-4">
@@ -344,10 +345,10 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                   key={clause.id}
                   onClick={() => handleClauseClick(clause)}
                   className={`clause-item p-3 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${clause.category === 'Red'
-                      ? 'border-red-200 bg-red-50 hover:border-red-300'
-                      : clause.category === 'Yellow'
-                        ? 'border-yellow-200 bg-yellow-50 hover:border-yellow-300'
-                        : 'border-green-200 bg-green-50 hover:border-green-300'
+                    ? 'border-red-200 bg-red-50 hover:border-red-300'
+                    : clause.category === 'Yellow'
+                      ? 'border-yellow-200 bg-yellow-50 hover:border-yellow-300'
+                      : 'border-green-200 bg-green-50 hover:border-green-300'
                     } ${selectedClause?.id === clause.id ? 'ring-2 ring-blue-500' : ''}`}
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -369,10 +370,10 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                         Page {clause.page_number}
                       </span>
                       <span className={`text-xs px-2 py-1 rounded font-medium ${clause.category === 'Red'
-                          ? 'bg-red-100 text-red-800'
-                          : clause.category === 'Yellow'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
+                        ? 'bg-red-100 text-red-800'
+                        : clause.category === 'Yellow'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-green-100 text-green-800'
                         }`}>
                         {(clause.score * 100).toFixed(0)}% Risk
                       </span>
@@ -386,10 +387,10 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                   {/* Plain English Explanation */}
                   {clause.explanation && (
                     <div className={`text-xs p-3 rounded-md border-l-4 ${clause.category === 'Red'
-                        ? 'bg-red-50 border-red-400 text-red-700'
-                        : clause.category === 'Yellow'
-                          ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
-                          : 'bg-green-50 border-green-400 text-green-700'
+                      ? 'bg-red-50 border-red-400 text-red-700'
+                      : clause.category === 'Yellow'
+                        ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
+                        : 'bg-green-50 border-green-400 text-green-700'
                       }`}>
                       <div className="font-medium mb-1">Plain English:</div>
                       {clause.explanation}
@@ -423,10 +424,10 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
                       key={clause.id}
                       onClick={() => handleClauseClick(clause)}
                       className={`p-2 rounded cursor-pointer transition-colors ${clause.category === 'Red'
-                          ? 'bg-red-100 hover:bg-red-200 border-l-4 border-red-400'
-                          : clause.category === 'Yellow'
-                            ? 'bg-yellow-100 hover:bg-yellow-200 border-l-4 border-yellow-400'
-                            : 'bg-green-100 hover:bg-green-200 border-l-4 border-green-400'
+                        ? 'bg-red-100 hover:bg-red-200 border-l-4 border-red-400'
+                        : clause.category === 'Yellow'
+                          ? 'bg-yellow-100 hover:bg-yellow-200 border-l-4 border-yellow-400'
+                          : 'bg-green-100 hover:bg-green-200 border-l-4 border-green-400'
                         }`}
                     >
                       <div className="flex items-center justify-between mb-1">
