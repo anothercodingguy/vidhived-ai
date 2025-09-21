@@ -1,37 +1,25 @@
 services:
+  # Backend Flask API
   - type: web
     name: vidhived-backend
     env: python
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && gunicorn -w 4 -b 0.0.0.0:$PORT wsgi:application
+    buildCommand: "pip install -r backend/requirements.txt && python -m spacy download en_core_web_sm"
+    startCommand: "cd backend && gunicorn --config gunicorn.conf.py app:app"
     envVars:
-      - key: GCP_PROJECT_ID
-        sync: false
-      - key: GCP_REGION
-        value: us-central1
-      - key: GCS_BUCKET_NAME
-        sync: false
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        value: /etc/secrets/gcp-key.json
-      - key: LOG_LEVEL
-        value: INFO
-      - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: vidhived-frontend
-          property: host
-    secretFiles:
-      - fromFile: gcp-key.json
-        toPath: /etc/secrets/gcp-key.json
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 5000
+    healthCheckPath: /health
 
+  # Frontend Next.js App
   - type: web
     name: vidhived-frontend
     env: node
-    buildCommand: cd frontend && npm ci && npm run build
-    startCommand: cd frontend && npm run start
+    buildCommand: "cd frontend && npm install && npm run build"
+    startCommand: "cd frontend && npm start"
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: vidhived-backend
-          property: host
+        value: https://vidhived-backend.onrender.com

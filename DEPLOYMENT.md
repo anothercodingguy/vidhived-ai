@@ -1,187 +1,97 @@
-# Vidhived.ai Deployment Guide
+# Deployment Guide for Render
 
-## 🚀 Production Deployment on Render.com
+## Option 1: Deploy using render.yaml (Recommended)
 
-### Prerequisites
-1. GitHub account with this repository
-2. Render.com account
-3. Google Cloud Platform account with billing enabled
-
-### Step 1: GCP Setup
-
-1. **Create GCP Project**
-   ```bash
-   gcloud projects create vidhived-ai-prod
-   gcloud config set project vidhived-ai-prod
-   ```
-
-2. **Enable Required APIs**
-   ```bash
-   gcloud services enable vision.googleapis.com
-   gcloud services enable storage.googleapis.com
-   gcloud services enable aiplatform.googleapis.com
-   ```
-
-3. **Create Service Account**
-   ```bash
-   gcloud iam service-accounts create vidhived-service \
-     --display-name="Vidhived Service Account"
-   ```
-
-4. **Assign Roles**
-   ```bash
-   PROJECT_ID="vidhived-ai-prod"
-   SERVICE_ACCOUNT="vidhived-service@${PROJECT_ID}.iam.gserviceaccount.com"
-   
-   gcloud projects add-iam-policy-binding $PROJECT_ID \
-     --member="serviceAccount:${SERVICE_ACCOUNT}" \
-     --role="roles/storage.objectAdmin"
-   
-   gcloud projects add-iam-policy-binding $PROJECT_ID \
-     --member="serviceAccount:${SERVICE_ACCOUNT}" \
-     --role="roles/vision.user"
-   
-   gcloud projects add-iam-policy-binding $PROJECT_ID \
-     --member="serviceAccount:${SERVICE_ACCOUNT}" \
-     --role="roles/aiplatform.user"
-   ```
-
-5. **Create Service Account Key**
-   ```bash
-   gcloud iam service-accounts keys create gcp-key.json \
-     --iam-account=$SERVICE_ACCOUNT
-   ```
-
-6. **Create GCS Bucket**
-   ```bash
-   gsutil mb gs://vidhived-ai-storage
-   gsutil cors set cors.json gs://vidhived-ai-storage
-   ```
-
-### Step 2: Render.com Deployment
-
-1. **Connect Repository**
-   - Go to Render.com dashboard
+1. **Connect your GitHub repository to Render:**
+   - Go to [render.com](https://render.com) and sign up/login
    - Click "New" → "Blueprint"
-   - Connect your GitHub repository
-   - Select this repository
+   - Connect your GitHub account and select this repository
+   - Render will automatically detect the `render.yaml` file
 
-2. **Upload Service Account Key**
-   - Go to Account Settings → Secret Files
-   - Upload `gcp-key.json` file
-   - Name it `gcp-key.json`
+2. **Set Environment Variables:**
+   
+   **Backend Service:**
+   - `GOOGLE_CLOUD_PROJECT_ID`: Your Google Cloud project ID
+   - `GOOGLE_CLOUD_API_KEY`: Your Google Cloud API key
+   - `GOOGLE_CLOUD_STORAGE_BUCKET`: Your GCS bucket name
+   - `FLASK_ENV`: `production`
+   
+   **Frontend Service:**
+   - `NEXT_PUBLIC_API_URL`: Will be set automatically to your backend URL
 
-3. **Configure Environment Variables**
-   The `render.yaml` will automatically configure most settings, but verify:
-   - `GCP_PROJECT_ID`: Your GCP project ID
-   - `GCS_BUCKET_NAME`: Your bucket name
-   - `GOOGLE_APPLICATION_CREDENTIALS`: `/etc/secrets/gcp-key.json`
+## Option 2: Deploy Services Separately
 
-4. **Deploy**
-   - Render will automatically deploy both services
-   - Backend will be available at: `https://vidhived-backend.onrender.com`
-   - Frontend will be available at: `https://vidhived-frontend.onrender.com`
+### Backend Deployment
 
-### Step 3: Verification
+1. **Create a new Web Service:**
+   - Repository: Your GitHub repo
+   - Build Command: `pip install -r backend/requirements.txt && python -m spacy download en_core_web_sm`
+   - Start Command: `cd backend && gunicorn --config gunicorn.conf.py app:app`
+   - Environment: `Python 3`
 
-1. **Test Backend**
-   ```bash
-   curl https://vidhived-backend.onrender.com/health
+2. **Environment Variables:**
+   ```
+   GOOGLE_CLOUD_PROJECT_ID=your-project-id
+   GOOGLE_CLOUD_API_KEY=your-api-key
+   GOOGLE_CLOUD_STORAGE_BUCKET=your-bucket-name
+   FLASK_ENV=production
+   PORT=10000
    ```
 
-2. **Test Frontend**
-   - Visit your frontend URL
-   - Upload a test PDF
-   - Verify analysis functionality
+### Frontend Deployment
 
-## 🐳 Docker Deployment (Alternative)
+1. **Create a new Web Service:**
+   - Repository: Your GitHub repo
+   - Build Command: `cd frontend && npm install && npm run build`
+   - Start Command: `cd frontend && npm start`
+   - Environment: `Node`
 
-### Build Images
-```bash
-# Backend
-cd backend
-docker build -t vidhived-backend .
+2. **Environment Variables:**
+   ```
+   NEXT_PUBLIC_API_URL=https://your-backend-service.onrender.com
+   NODE_ENV=production
+   ```
 
-# Frontend
-cd frontend
-docker build -t vidhived-frontend .
-```
+## Required Google Cloud Setup
 
-### Run with Docker Compose
-```yaml
-version: '3.8'
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "5000:5000"
-    environment:
-      - GCP_PROJECT_ID=your-project-id
-      - GCS_BUCKET_NAME=your-bucket-name
-    volumes:
-      - ./gcp-key.json:/etc/secrets/gcp-key.json
+1. **Enable APIs:**
+   - Cloud Vision API
+   - Cloud Storage API
+   - Vertex AI API (for Gemini)
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5000
-    depends_on:
-      - backend
-```
+2. **Create Service Account:**
+   - Create a service account with necessary permissions
+   - Download the JSON key file
+   - Set `GOOGLE_CLOUD_API_KEY` to the base64 encoded content of the JSON file
 
-## 🔧 Environment Configuration
+3. **Create Storage Bucket:**
+   - Create a GCS bucket for file storage
+   - Set appropriate permissions
 
-### Backend Environment Variables
-```env
-GCP_PROJECT_ID=your-gcp-project-id
-GCP_REGION=us-central1
-GCS_BUCKET_NAME=your-bucket-name
-GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/gcp-key.json
-CORS_ORIGINS=https://your-frontend-url.com
-LOG_LEVEL=INFO
-```
+## Health Checks
 
-### Frontend Environment Variables
-```env
-NEXT_PUBLIC_API_URL=https://your-backend-url.com
-```
+- Backend: `https://your-backend.onrender.com/health`
+- Frontend: `https://your-frontend.onrender.com`
 
-## 📊 Monitoring & Maintenance
+## Troubleshooting
 
-### Health Checks
-- Backend: `GET /health`
-- Monitor GCP quotas and billing
-- Check Render.com service logs
+1. **Build Failures:**
+   - Check that all dependencies are in requirements.txt
+   - Ensure spaCy model downloads successfully
+   - Verify Python version compatibility
 
-### Scaling
-- Render.com auto-scales based on traffic
-- Monitor response times and adjust instance types if needed
-- Consider CDN for frontend assets
+2. **Runtime Errors:**
+   - Check environment variables are set correctly
+   - Verify Google Cloud credentials
+   - Check logs in Render dashboard
 
-### Security
-- Regularly rotate service account keys
-- Monitor GCP audit logs
-- Keep dependencies updated
+3. **CORS Issues:**
+   - Ensure frontend URL is added to CORS origins in backend
+   - Check that API_URL environment variable is correct
 
-## 🚨 Troubleshooting
+## Performance Optimization
 
-### Common Issues
-1. **GCP Authentication Errors**
-   - Verify service account key is uploaded correctly
-   - Check IAM permissions
-
-2. **CORS Issues**
-   - Ensure CORS_ORIGINS includes your frontend URL
-   - Check browser developer tools for specific errors
-
-3. **PDF Processing Failures**
-   - Verify Vision API is enabled
-   - Check GCS bucket permissions
-   - Monitor API quotas
-
-### Support
-- Check Render.com service logs
-- Review GCP Cloud Logging
-- Monitor application metrics
+- Backend uses Gunicorn with optimized worker configuration
+- Frontend is built with Next.js production optimizations
+- Static assets are served efficiently
+- Health checks ensure service availability
