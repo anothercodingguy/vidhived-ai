@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { Clause } from '@/lib/api'
-
 import { AdvancedAnalysis } from '@/lib/api'
+import ReportGenerator from './ReportGenerator'
 
 interface AnalysisSidebarProps {
   clauses: Clause[]
@@ -15,7 +15,8 @@ interface AnalysisSidebarProps {
 
 export default function AnalysisSidebar({ clauses, onClauseClick, documentSummary, fullAnalysis, advancedAnalysis }: AnalysisSidebarProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
-  const [activeTab, setActiveTab] = useState<'summary' | 'clauses' | 'entities'>('summary')
+  const [activeTab, setActiveTab] = useState<'summary' | 'clauses' | 'categories'>('summary')
+  const [selectedClause, setSelectedClause] = useState<Clause | null>(null)
 
   const categories = ['All', 'Red', 'Yellow', 'Green']
   
@@ -73,6 +74,32 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
     }
   }
 
+  const getClauseCategory = (clause: Clause) => {
+    const text = clause.text.toLowerCase()
+    if (text.includes('payment') || text.includes('fee') || text.includes('cost')) return '💰 Payment Terms'
+    if (text.includes('termination') || text.includes('breach') || text.includes('default')) return '❌ Termination & Breach'
+    if (text.includes('notice') || text.includes('day') || text.includes('month')) return '📆 Time/Notice Periods'
+    if (text.includes('obligation') || text.includes('liable') || text.includes('responsible')) return '⚖️ Legal Obligations'
+    if (text.includes('confidential') || text.includes('proprietary')) return '🔒 Confidentiality'
+    if (text.includes('intellectual property') || text.includes('copyright')) return '📝 IP Rights'
+    return '📋 General Terms'
+  }
+
+  const getCategorizedClauses = () => {
+    const categorized: Record<string, Clause[]> = {}
+    clauses.forEach(clause => {
+      const category = getClauseCategory(clause)
+      if (!categorized[category]) categorized[category] = []
+      categorized[category].push(clause)
+    })
+    return categorized
+  }
+
+  const handleClauseClick = (clause: Clause) => {
+    setSelectedClause(clause)
+    onClauseClick(clause.id)
+  }
+
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Header */}
@@ -102,14 +129,14 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
             Clauses ({clauses.length})
           </button>
           <button
-            onClick={() => setActiveTab('entities')}
+            onClick={() => setActiveTab('categories')}
             className={`px-2 py-2 text-xs rounded-md transition-colors ${
-              activeTab === 'entities'
+              activeTab === 'categories'
                 ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            Entities
+            Categories
           </button>
         </div>
         
@@ -308,8 +335,8 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
               </div>
             )}
           </div>
-        ) : (
-          /* Clauses List */
+        ) : activeTab === 'clauses' ? (
+          /* Enhanced Clauses List with Tooltips */
           <div className="space-y-3">
             {filteredClauses.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
@@ -319,47 +346,129 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
               filteredClauses.map(clause => (
                 <div
                   key={clause.id}
-                  onClick={() => onClauseClick(clause.id)}
-                  className={`clause-item ${clause.category.toLowerCase()} cursor-pointer`}
+                  onClick={() => handleClauseClick(clause)}
+                  className={`clause-item p-3 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                    clause.category === 'Red' 
+                      ? 'border-red-200 bg-red-50 hover:border-red-300'
+                      : clause.category === 'Yellow'
+                      ? 'border-yellow-200 bg-yellow-50 hover:border-yellow-300'
+                      : 'border-green-200 bg-green-50 hover:border-green-300'
+                  } ${selectedClause?.id === clause.id ? 'ring-2 ring-blue-500' : ''}`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <span className={getCategoryColor(clause.category)}>
+                      <span className={`p-1 rounded ${getCategoryColor(clause.category)}`}>
                         {getRiskIcon(clause.category)}
                       </span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {clause.type}
-                      </span>
+                      <div>
+                        <span className="text-sm font-medium text-gray-900 block">
+                          {getClauseCategory(clause)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {clause.type}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-col items-end space-y-1">
                       <span className="text-xs text-gray-500">
                         Page {clause.page_number}
                       </span>
-                      <span className={`text-xs px-2 py-1 rounded ${getCategoryColor(clause.category)}`}>
-                        {(clause.score * 100).toFixed(0)}%
+                      <span className={`text-xs px-2 py-1 rounded font-medium ${
+                        clause.category === 'Red' 
+                          ? 'bg-red-100 text-red-800'
+                          : clause.category === 'Yellow'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {(clause.score * 100).toFixed(0)}% Risk
                       </span>
                     </div>
                   </div>
                   
-                  <p className="text-sm text-gray-700 mb-2 line-clamp-3">
+                  <p className="text-sm text-gray-700 mb-3 line-clamp-2">
                     {clause.text}
                   </p>
                   
+                  {/* Plain English Explanation */}
                   {clause.explanation && (
-                    <div className={`text-xs p-2 rounded border-l-4 ${
+                    <div className={`text-xs p-3 rounded-md border-l-4 ${
                       clause.category === 'Red' 
                         ? 'bg-red-50 border-red-400 text-red-700'
-                        : 'bg-yellow-50 border-yellow-400 text-yellow-700'
+                        : clause.category === 'Yellow'
+                        ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
+                        : 'bg-green-50 border-green-400 text-green-700'
                     }`}>
+                      <div className="font-medium mb-1">Plain English:</div>
                       {clause.explanation}
                     </div>
                   )}
+                  
+                  {/* Click to highlight indicator */}
+                  <div className="text-xs text-gray-400 mt-2 flex items-center">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    Click to highlight in PDF
+                  </div>
                 </div>
               ))
             )}
           </div>
+        ) : (
+          /* Smart Clause Categories */
+          <div className="space-y-4">
+            {Object.entries(getCategorizedClauses()).map(([category, categoryClause]) => (
+              <div key={category} className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                  <span className="text-lg mr-2">{category.split(' ')[0]}</span>
+                  {category.substring(2)} ({categoryClause.length})
+                </h3>
+                <div className="space-y-2">
+                  {categoryClause.map(clause => (
+                    <div
+                      key={clause.id}
+                      onClick={() => handleClauseClick(clause)}
+                      className={`p-2 rounded cursor-pointer transition-colors ${
+                        clause.category === 'Red' 
+                          ? 'bg-red-100 hover:bg-red-200 border-l-4 border-red-400'
+                          : clause.category === 'Yellow'
+                          ? 'bg-yellow-100 hover:bg-yellow-200 border-l-4 border-yellow-400'
+                          : 'bg-green-100 hover:bg-green-200 border-l-4 border-green-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-700">
+                          {clause.type}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          {getRiskIcon(clause.category)}
+                          <span className="text-xs text-gray-500">
+                            Page {clause.page_number}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2">
+                        {clause.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
+      
+      {/* Report Generator - Always visible at bottom */}
+      {clauses.length > 0 && (
+        <ReportGenerator 
+          clauses={clauses}
+          documentSummary={documentSummary}
+          fullAnalysis={fullAnalysis}
+          documentId={clauses[0]?.id || 'unknown'}
+        />
+      )}
     </div>
   )
 }

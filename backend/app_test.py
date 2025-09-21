@@ -29,24 +29,74 @@ def upload():
         doc_id = str(uuid.uuid4())
         print(f"Generated ID: {doc_id}")
         
-        # Store immediately - no file saving
+        # Store immediately with comprehensive sample data
         docs[doc_id] = {
             "documentId": doc_id,
             "status": "completed",
-            "analysis": [{
-                "id": "1",
-                "page_number": 1,
-                "text": "Test clause",
-                "bounding_box": {"vertices": [{"x": 0, "y": 0}]},
-                "ocr_page_width": 612,
-                "ocr_page_height": 792,
-                "score": 0.8,
-                "category": "Green",
-                "type": "Test",
-                "explanation": "Test explanation"
-            }],
-            "documentSummary": "Test summary",
-            "fullAnalysis": "Test analysis"
+            "analysis": [
+                {
+                    "id": "1",
+                    "page_number": 1,
+                    "text": "The Client shall pay all fees within thirty (30) days of invoice date. Late payments will incur a penalty of 1.5% per month on the outstanding balance.",
+                    "bounding_box": {"vertices": [{"x": 50, "y": 100}, {"x": 550, "y": 100}, {"x": 550, "y": 150}, {"x": 50, "y": 150}]},
+                    "ocr_page_width": 612,
+                    "ocr_page_height": 792,
+                    "score": 0.9,
+                    "category": "Red",
+                    "type": "Payment Terms",
+                    "explanation": "HIGH RISK: This clause imposes strict payment deadlines with significant penalties for late payment. The 1.5% monthly penalty rate is quite high and could result in substantial additional costs."
+                },
+                {
+                    "id": "2", 
+                    "page_number": 1,
+                    "text": "Either party may terminate this agreement with sixty (60) days written notice. Upon termination, all work product shall be delivered within fifteen (15) days.",
+                    "bounding_box": {"vertices": [{"x": 50, "y": 200}, {"x": 550, "y": 200}, {"x": 550, "y": 250}, {"x": 50, "y": 250}]},
+                    "ocr_page_width": 612,
+                    "ocr_page_height": 792,
+                    "score": 0.6,
+                    "category": "Yellow",
+                    "type": "Termination Clause",
+                    "explanation": "MEDIUM RISK: The 60-day notice period is reasonable, but the 15-day delivery requirement after termination may be challenging to meet depending on project complexity."
+                },
+                {
+                    "id": "3",
+                    "page_number": 2,
+                    "text": "This agreement shall be governed by the laws of the State of California. Any disputes shall be resolved through binding arbitration.",
+                    "bounding_box": {"vertices": [{"x": 50, "y": 300}, {"x": 550, "y": 300}, {"x": 550, "y": 350}, {"x": 50, "y": 350}]},
+                    "ocr_page_width": 612,
+                    "ocr_page_height": 792,
+                    "score": 0.3,
+                    "category": "Green",
+                    "type": "Governing Law",
+                    "explanation": "LOW RISK: Standard governing law and arbitration clause. California law is well-established for business contracts, and arbitration can be cost-effective for dispute resolution."
+                },
+                {
+                    "id": "4",
+                    "page_number": 2,
+                    "text": "The Contractor shall maintain confidentiality of all proprietary information and shall not disclose such information to third parties without prior written consent.",
+                    "bounding_box": {"vertices": [{"x": 50, "y": 400}, {"x": 550, "y": 400}, {"x": 550, "y": 450}, {"x": 50, "y": 450}]},
+                    "ocr_page_width": 612,
+                    "ocr_page_height": 792,
+                    "score": 0.4,
+                    "category": "Green",
+                    "type": "Confidentiality",
+                    "explanation": "LOW RISK: Standard confidentiality clause that protects sensitive business information. The terms are reasonable and commonly accepted in professional agreements."
+                },
+                {
+                    "id": "5",
+                    "page_number": 3,
+                    "text": "In the event of breach of contract, the breaching party shall be liable for all damages including attorney fees and costs, with liability not to exceed $50,000.",
+                    "bounding_box": {"vertices": [{"x": 50, "y": 500}, {"x": 550, "y": 500}, {"x": 550, "y": 550}, {"x": 50, "y": 550}]},
+                    "ocr_page_width": 612,
+                    "ocr_page_height": 792,
+                    "score": 0.7,
+                    "category": "Yellow",
+                    "type": "Liability Clause",
+                    "explanation": "MEDIUM RISK: While the liability cap of $50,000 provides some protection, the inclusion of attorney fees could significantly increase costs in case of disputes. Consider negotiating the attorney fees provision."
+                }
+            ],
+            "documentSummary": "This is a comprehensive service agreement containing standard business terms with some areas requiring attention. The document includes payment terms, termination conditions, confidentiality requirements, and liability provisions.",
+            "fullAnalysis": "EXECUTIVE SUMMARY: This 3-page service agreement has been analyzed and contains 5 key clauses with varying risk levels. The contract includes 1 high-risk clause (payment penalties), 2 medium-risk clauses (termination and liability), and 2 low-risk clauses (governing law and confidentiality). RECOMMENDATIONS: Review the payment penalty terms for potential negotiation, ensure termination delivery timelines are feasible, and consider attorney fees provisions in the liability clause."
         }
         
         print(f"Stored doc: {doc_id}")
