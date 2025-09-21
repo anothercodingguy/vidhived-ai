@@ -83,31 +83,32 @@ def get_doc(doc_id):
 
 @app.route('/pdf/<doc_id>', methods=['GET'])
 def get_pdf_url(doc_id):
+    """Return JSON with PDF URL - NOT the PDF file itself"""
     try:
-        print(f"=== PDF URL REQUEST ===")
+        print(f"=== GET PDF URL (JSON) ===")
         print(f"Doc ID: {doc_id}")
-        print(f"Request headers: {dict(request.headers)}")
-        print(f"Request method: {request.method}")
         print(f"Request URL: {request.url}")
-        print(f"Available docs: {list(docs.keys())}")
+        print(f"User-Agent: {request.headers.get('User-Agent', 'Unknown')}")
+        print(f"Accept: {request.headers.get('Accept', 'Unknown')}")
         
-        # Always return JSON regardless of whether doc exists (for testing)
+        # Force JSON response with explicit headers
         response_data = {
-            "pdfUrl": "data:text/plain;charset=utf-8,This%20is%20a%20test%20PDF%20response",
+            "pdfUrl": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+            "message": "This is JSON, not PDF content",
             "docId": doc_id,
-            "found": doc_id in docs,
-            "test": "This is definitely JSON"
+            "endpoint": "/pdf/ (returns JSON)"
         }
-        print(f"Returning JSON: {response_data}")
+        print(f"Returning JSON response: {response_data}")
         
         response = jsonify(response_data)
-        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
         response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Cache-Control'] = 'no-cache'
         return response
         
     except Exception as e:
         print(f"PDF URL error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "endpoint": "/pdf/ (JSON)"}), 500
 
 @app.route('/test-json', methods=['GET'])
 def test_json():
@@ -125,6 +126,31 @@ def debug_docs():
         "docs": docs
     })
 
+@app.route('/pdf-file/<doc_id>', methods=['GET'])
+def serve_pdf_file(doc_id):
+    """Serve actual PDF file content"""
+    try:
+        print(f"=== SERVE PDF FILE ===")
+        print(f"Doc ID: {doc_id}")
+        print(f"This endpoint serves PDF content, not JSON")
+        
+        # Return a simple PDF-like response
+        pdf_content = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n%%EOF"
+        
+        response = app.response_class(
+            pdf_content,
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'inline; filename="{doc_id}.pdf"',
+                'Access-Control-Allow-Origin': '*'
+            }
+        )
+        return response
+        
+    except Exception as e:
+        print(f"PDF file serve error: {e}")
+        return str(e), 500
+
 @app.route('/ask', methods=['POST'])
 def ask():
     try:
@@ -136,6 +162,16 @@ def ask():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.before_request
+def log_request():
+    """Log all incoming requests"""
+    print(f"=== INCOMING REQUEST ===")
+    print(f"Method: {request.method}")
+    print(f"URL: {request.url}")
+    print(f"Path: {request.path}")
+    print(f"Headers: {dict(request.headers)}")
+    print("========================")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
