@@ -411,16 +411,21 @@ def process_document_basic(doc_id: str, file_path: str):
         # Try to extract text with PyPDF2 if available
         try:
             import PyPDF2
+            logger.info(f"Attempting to extract text from {file_path}")
             with open(file_path, 'rb') as pdf_file:
                 pdf_reader = PyPDF2.PdfReader(pdf_file)
                 full_text = ""
-                for page in pdf_reader.pages:
-                    full_text += page.extract_text() + "\n"
+                for page_num, page in enumerate(pdf_reader.pages, 1):
+                    page_text = page.extract_text()
+                    full_text += page_text + "\n"
+                    logger.info(f"Extracted {len(page_text)} characters from page {page_num}")
+                logger.info(f"Total extracted text length: {len(full_text)}")
         except ImportError:
             logger.warning("PyPDF2 not available, using sample text")
+            full_text = "Sample legal document text for demonstration purposes. This is a fallback when PyPDF2 is not available."
         except Exception as e:
             logger.error(f"PDF text extraction failed: {e}")
-            full_text = "Unable to extract text from PDF. Please ensure the PDF contains readable text."
+            full_text = f"Unable to extract text from PDF: {str(e)}. Please ensure the PDF contains readable text."
         
         # Basic clause analysis (without AI)
         job_status[doc_id]["message"] = "Analyzing clauses..."
@@ -628,6 +633,15 @@ def test():
         }
     })
 
+@app.route('/debug/documents', methods=['GET'])
+def debug_documents():
+    """Debug endpoint to list all documents"""
+    return jsonify({
+        "documents": list(job_status.keys()),
+        "job_status": job_status,
+        "temp_files": []  # We'll add this if needed
+    })
+
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
     """Upload PDF and start analysis"""
@@ -680,18 +694,25 @@ def upload_pdf():
             # Save file locally
             file_path = os.path.join(temp_dir, f"{doc_id}.pdf")
             file.save(file_path)
+            logger.info(f"Saved PDF to {file_path}")
+            
+            # Initialize job status immediately
+            job_status[doc_id] = {"status": "processing", "message": "Starting document processing..."}
+            logger.info(f"Initialized job status for {doc_id}")
             
             # Start basic processing
             thread = threading.Thread(target=process_document_basic, args=(doc_id, file_path))
             thread.daemon = True
             thread.start()
+            logger.info(f"Started processing thread for {doc_id}")
             
             # Get the base URL for the response
             base_url = request.host_url.rstrip('/')
+            pdf_url = f"{base_url}/pdf-file/{doc_id}"
             
             return jsonify({
                 "documentId": doc_id,
-                "pdfUrl": f"{base_url}/pdf-file/{doc_id}",
+                "pdfUrl": pdf_url,
                 "message": "File uploaded successfully. Basic analysis started."
             })
         
@@ -730,7 +751,8 @@ def serve_pdf(doc_id):
             
             # Return the full URL for the PDF endpoint
             base_url = request.host_url.rstrip('/')
-            return jsonify({"pdfUrl": f"{base_url}/pdf-file/{doc_id}"})
+            pdf_url = f"{base_url}/pdf-file/{doc_id}"
+            return jsonify({"pdfUrl": pdf_url})
         
     except Exception as e:
         logger.error(f"Failed to serve PDF {doc_id}: {e}")
@@ -762,10 +784,15 @@ def serve_pdf_file(doc_id):
 def get_document_status(doc_id):
     """Get document analysis status and results"""
     try:
+        logger.info(f"Getting status for document {doc_id}")
+        logger.info(f"Available documents in job_status: {list(job_status.keys())}")
+        
         if doc_id not in job_status:
-            return jsonify({"error": "Document not found"}), 404
+            logger.error(f"Document {doc_id} not found in job_status")
+            return jsonify({"error": "Document not found", "documentId": doc_id}), 404
         
         status_info = job_status[doc_id]
+        logger.info(f"Status for {doc_id}: {status_info.get('status', 'unknown')}")
         
         if status_info["status"] == "completed":
             return jsonify(status_info["analysis_result"])
@@ -778,7 +805,7 @@ def get_document_status(doc_id):
             
     except Exception as e:
         logger.error(f"Failed to get document status {doc_id}: {e}")
-        return jsonify({"error": "Failed to get document status"}), 500
+        return jsonify({"error": f"Failed to get document status: {str(e)}"}), 500
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
