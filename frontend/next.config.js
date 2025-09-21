@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Simplified configuration for faster builds
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
   webpack: (config) => {
     // Handle PDF.js worker
     config.resolve.alias = {

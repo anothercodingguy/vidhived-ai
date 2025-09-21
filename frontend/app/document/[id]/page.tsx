@@ -40,7 +40,7 @@ export default function DocumentPage() {
         console.log('PDF URL loaded:', pdfResult.pdfUrl)
       } catch (pdfErr) {
         console.error('PDF URL error:', pdfErr)
-        setError(`Failed to get PDF URL: ${pdfErr.message}`)
+        setError(`Failed to get PDF URL: ${pdfErr instanceof Error ? pdfErr.message : String(pdfErr)}`)
         return
       }
 
@@ -50,12 +50,12 @@ export default function DocumentPage() {
         console.log('Status check completed')
       } catch (statusErr) {
         console.error('Status check error:', statusErr)
-        setError(`Failed to get document status: ${statusErr.message}`)
+        setError(`Failed to get document status: ${statusErr instanceof Error ? statusErr.message : String(statusErr)}`)
         return
       }
 
     } catch (err) {
-      setError(`Failed to load document: ${err.message}`)
+      setError(`Failed to load document: ${err instanceof Error ? err.message : String(err)}`)
       console.error('Load document error:', err)
     } finally {
       setLoading(false)
