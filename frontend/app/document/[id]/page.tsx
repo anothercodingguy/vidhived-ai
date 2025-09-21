@@ -31,14 +31,31 @@ export default function DocumentPage() {
       setLoading(true)
       setError('')
 
+      console.log('Loading document:', documentId)
+
       // Get PDF URL
-      const pdfResult = await getPDFUrl(documentId)
-      setPdfUrl(pdfResult.pdfUrl)
+      try {
+        const pdfResult = await getPDFUrl(documentId)
+        setPdfUrl(pdfResult.pdfUrl)
+        console.log('PDF URL loaded:', pdfResult.pdfUrl)
+      } catch (pdfErr) {
+        console.error('PDF URL error:', pdfErr)
+        setError(`Failed to get PDF URL: ${pdfErr.message}`)
+        return
+      }
 
       // Get analysis status
-      await checkStatus()
+      try {
+        await checkStatus()
+        console.log('Status check completed')
+      } catch (statusErr) {
+        console.error('Status check error:', statusErr)
+        setError(`Failed to get document status: ${statusErr.message}`)
+        return
+      }
+
     } catch (err) {
-      setError('Failed to load document')
+      setError(`Failed to load document: ${err.message}`)
       console.error('Load document error:', err)
     } finally {
       setLoading(false)
@@ -47,7 +64,9 @@ export default function DocumentPage() {
 
   const checkStatus = async () => {
     try {
+      console.log('Checking status for:', documentId)
       const result = await getDocumentStatus(documentId)
+      console.log('Status result:', result)
       setAnalysis(result)
       
       if (result.status === 'failed') {
@@ -55,6 +74,7 @@ export default function DocumentPage() {
       }
     } catch (err) {
       console.error('Status check error:', err)
+      throw err // Re-throw to be caught by loadDocument
     }
   }
 
