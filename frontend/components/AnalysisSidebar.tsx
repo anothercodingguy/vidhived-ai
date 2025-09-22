@@ -102,9 +102,9 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-800">
+    <div className="h-full flex flex-col bg-white dark:bg-dark-card">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-200 dark:border-dark-border">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Legal Analysis</h2>
 
         {/* Tab Navigation */}
@@ -113,7 +113,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
             onClick={() => setActiveTab('summary')}
             className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'summary'
               ? 'bg-primary-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              : 'bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-dark-text-secondary hover:bg-gray-200 dark:hover:bg-dark-border'
               }`}
           >
             Summary
@@ -122,7 +122,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
             onClick={() => setActiveTab('clauses')}
             className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'clauses'
               ? 'bg-primary-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              : 'bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-dark-text-secondary hover:bg-gray-200 dark:hover:bg-dark-border'
               }`}
           >
             Clauses ({clauses.length})
@@ -131,7 +131,7 @@ export default function AnalysisSidebar({ clauses, onClauseClick, documentSummar
             onClick={() => setActiveTab('categories')}
             className={`px-2 py-2 text-xs rounded-md transition-colors ${activeTab === 'categories'
               ? 'bg-primary-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              : 'bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-dark-text-secondary hover:bg-gray-200 dark:hover:bg-dark-border'
               }`}
           >
             Categories

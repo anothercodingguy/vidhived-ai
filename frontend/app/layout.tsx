@@ -17,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors`}>
+      <body className={`${inter.className} bg-white dark:bg-black text-gray-900 dark:text-white transition-colors`}>
         <ThemeProvider>
           {children}
         </ThemeProvider>

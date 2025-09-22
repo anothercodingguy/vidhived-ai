@@ -64,9 +64,9 @@ export default function AskPanel({ documentId, documentSummary }: AskPanelProps)
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex flex-col h-full">
+    <div className="bg-white dark:bg-dark-card border-t border-gray-200 dark:border-dark-border flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-200 dark:border-dark-border">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Document Chat</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400">Ask questions about the document</p>
       </div>
@@ -82,7 +82,7 @@ export default function AskPanel({ documentId, documentSummary }: AskPanelProps)
               className={`max-w-[80%] rounded-lg p-3 ${
                 message.type === 'user'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                  : 'bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-dark-text'
               }`}
             >
               <div className="text-sm whitespace-pre-wrap">{message.content}</div>
@@ -97,7 +97,7 @@ export default function AskPanel({ documentId, documentSummary }: AskPanelProps)
         
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+            <div className="bg-gray-100 dark:bg-dark-surface rounded-lg p-3">
               <div className="flex items-center space-x-2">
                 <svg className="animate-spin h-4 w-4 text-gray-600 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -112,13 +112,13 @@ export default function AskPanel({ documentId, documentSummary }: AskPanelProps)
 
       {/* Error */}
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
+        <div className="p-4 bg-red-50 dark:bg-red-900/10 border-t border-red-200 dark:border-red-800/30">
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
         </div>
       )}
 
       {/* Input Form */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-t border-gray-200 dark:border-dark-border">
         <form onSubmit={handleSubmit}>
           <div className="flex space-x-2">
             <input
@@ -126,7 +126,7 @@ export default function AskPanel({ documentId, documentSummary }: AskPanelProps)
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ask about payment terms, risks, obligations..."
-              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={loading}
             />
             <button

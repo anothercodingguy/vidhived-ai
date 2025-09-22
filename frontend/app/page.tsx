@@ -41,7 +41,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-black dark:to-dark-surface">
       {/* Theme Toggle */}
       <div className="absolute top-4 right-4">
         <ThemeToggle />
@@ -58,13 +58,13 @@ export default function HomePage() {
         </div>
 
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
+          <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg p-8">
             <h2 className="text-2xl font-semibold mb-6 text-center text-gray-900 dark:text-white">
               Upload Legal Document
             </h2>
 
             <div className="space-y-6">
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
+              <div className="border-2 border-dashed border-gray-300 dark:border-dark-border rounded-lg p-8 text-center">
                 <input
                   type="file"
                   accept=".pdf"
@@ -77,7 +77,7 @@ export default function HomePage() {
                   className="cursor-pointer flex flex-col items-center"
                 >
                   <svg
-                    className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-4"
+                    className="w-12 h-12 text-gray-400 dark:text-dark-text-muted mb-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -89,17 +89,17 @@ export default function HomePage() {
                       d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                     />
                   </svg>
-                  <span className="text-lg font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-lg font-medium text-gray-700 dark:text-dark-text-secondary">
                     {file ? file.name : 'Click to select PDF file'}
                   </span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  <span className="text-sm text-gray-500 dark:text-dark-text-muted mt-2">
                     PDF files only, up to 10MB
                   </span>
                 </label>
               </div>
 
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+                <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30 rounded-md p-4">
                   <p className="text-red-600 dark:text-red-400">{error}</p>
                 </div>
               )}
