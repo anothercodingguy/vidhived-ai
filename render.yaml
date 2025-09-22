@@ -4,8 +4,8 @@ services:
     name: vidhived-backend
     env: python
     plan: free
-    buildCommand: "pip install Flask==3.0.0 gunicorn==21.2.0 flask-cors==4.0.0 python-dotenv==1.0.0"
-    startCommand: "cd backend && python app_test.py"
+    buildCommand: "pip install Flask==3.0.0 gunicorn==21.2.0 flask-cors==4.0.0 python-dotenv==1.0.0 PyPDF2==3.0.1"
+    startCommand: "cd backend && gunicorn --bind 0.0.0.0:$PORT app:app"
     envVars:
       - key: FLASK_ENV
         value: production
@@ -18,7 +18,7 @@ services:
     name: vidhived-frontend
     env: node
     plan: free
-    buildCommand: "cd frontend && npm ci && npm run build"
+    buildCommand: "cd frontend && npm install && npm run build"
     startCommand: "cd frontend && npm start"
     envVars:
       - key: NODE_ENV
