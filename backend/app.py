@@ -103,9 +103,7 @@ if ADVANCED_ANALYSIS_AVAILABLE:
     except Exception as e:
         logger.error(f"Failed to initialize Advanced Legal Analyzer: {e}")
         advanced_analyzer = None
-    bucket = None
-    gemini_client = None
-    advanced_analyzer = None
+    # Do not overwrite advanced_analyzer or other clients if already initialized
 
 # In-memory job status store (use Redis in production)
 job_status = {}

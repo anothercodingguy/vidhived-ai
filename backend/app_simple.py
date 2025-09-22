@@ -7,25 +7,12 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-app = Flask(__name__)
-
-# Configure CORS
-CORS(app, origins=['*'])
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Simple in-memory storage
 documents = {}
-
-@app.route('/health', methods=['GET'])
 def health():
-    """Health check endpoint"""
-    return jsonify({"status": "ok", "message": "Simple backend is working"})
+"""
+This file is now deprecated. Use app.py for all production and development purposes.
+All test/demo endpoints and logic have been removed.
+"""
 
 @app.route('/upload', methods=['POST'])
 def upload_pdf():

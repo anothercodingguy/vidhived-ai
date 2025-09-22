@@ -130,18 +130,7 @@ export async function uploadPDF(file: File): Promise<UploadResponse> {
     throw new Error(errorMessage)
   }
 
-  try {
-    return await response.json()
-  } catch (jsonError) {
-    // If response is not JSON, create a fallback response
-    console.warn('Upload response is not JSON, creating fallback')
-    const documentId = `fallback-${Date.now()}`
-    return {
-      documentId,
-      pdfUrl: URL.createObjectURL(file), // Use the original file as PDF URL
-      message: 'File uploaded successfully (fallback mode)'
-    }
-  }
+  return await response.json()
 }
 
 export async function getDocumentStatus(documentId: string): Promise<DocumentAnalysis> {
@@ -158,31 +147,7 @@ export async function getDocumentStatus(documentId: string): Promise<DocumentAna
     throw new Error(errorMessage)
   }
 
-  try {
-    return await response.json()
-  } catch (jsonError) {
-    // If response is not JSON, create a fallback response
-    console.warn('Document status response is not JSON, creating fallback')
-    return {
-      documentId,
-      status: 'completed',
-      analysis: [{
-        id: '1',
-        page_number: 1,
-        text: 'Sample clause from uploaded document',
-        bounding_box: { vertices: [{ x: 0, y: 0 }] },
-        ocr_page_width: 612,
-        ocr_page_height: 792,
-        score: 0.8,
-        category: 'Green' as const,
-        type: 'Standard',
-        explanation: 'This is a sample analysis of your uploaded document.'
-      }],
-      documentSummary: 'Document uploaded successfully. Sample analysis provided.',
-      fullAnalysis: 'Your document has been processed. This is a demonstration of the legal analysis interface.',
-      message: 'Analysis completed'
-    }
-  }
+  return await response.json()
 }
 
 export async function getPDFUrl(documentId: string): Promise<{ pdfUrl: string }> {
