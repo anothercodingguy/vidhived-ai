@@ -12,14 +12,15 @@ import threading
 import re
 from typing import List, Dict, Any
 
-# Optional imports for image processing
+# Optional imports for image processing (not required for basic functionality)
+IMAGE_PROCESSING_AVAILABLE = False
 try:
     import numpy as np
     from PIL import Image
     IMAGE_PROCESSING_AVAILABLE = True
+    print("Image processing libraries loaded successfully")
 except ImportError:
-    IMAGE_PROCESSING_AVAILABLE = False
-    print("Image processing libraries not available - using basic mode")
+    print("Image processing libraries not available - using basic mode (this is fine)")
 
 # Optional imports for AI features
 try:
