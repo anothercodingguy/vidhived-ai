@@ -216,7 +216,7 @@ npm run build
 
 ### Troubleshooting
 
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed debugging steps and common issues.
+See [RENDER_SETUP.md](RENDER_SETUP.md) for detailed setup and troubleshooting.
 
 ## 📡 API Endpoints
 
@@ -333,10 +333,8 @@ vidhived/
    git clone https://github.com/anothercodingguy/vidhived-ai.git
    cd vidhived-ai
    ```
-2. **Set up GCP** (see DEPLOYMENT.md)
-3. **Deploy to Render.com** using the included render.yaml
-4. **Upload your GCP service account key**
-5. **Your legal co-pilot is live!**
+2. **Follow the [QUICK_START.md](QUICK_START.md) guide** (5 minutes)
+3. **Your legal co-pilot is live!**
 
 ## 🔮 Roadmap
 

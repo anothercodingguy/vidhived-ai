@@ -4,8 +4,6 @@ import json
 import logging
 import asyncio
 import io
-import base64
-import tempfile
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_file, Response
 from flask_cors import CORS
@@ -96,45 +94,16 @@ def check_gcs_connectivity():
         logger.error(f"GCS connectivity test failed: {e}")
         return False, f"GCS connectivity failed: {str(e)}"
 
-# Handle service account credentials
-def setup_gcp_credentials():
-    """Setup GCP credentials from environment variables"""
-    # Check if we have base64 encoded credentials (for Render)
-    base64_creds = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_BASE64')
-    if base64_creds:
-        try:
-            # Decode base64 credentials
-            creds_json = base64.b64decode(base64_creds).decode('utf-8')
-            
-            # Create temporary file for credentials
-            temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-            temp_file.write(creds_json)
-            temp_file.close()
-            
-            # Set environment variable to point to temp file
-            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_file.name
-            logger.info(f"Using base64 encoded service account credentials")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to setup base64 credentials: {e}")
-            return False
-    
-    # Check if we have file path credentials (for local development)
-    creds_file = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-    if creds_file and os.path.exists(creds_file):
-        logger.info(f"Using service account from file: {creds_file}")
-        return True
-    
-    return False
-
 # Check if GCP should be used
 USE_GCP = (GOOGLE_CLOUD_AVAILABLE and 
+           os.getenv('GOOGLE_APPLICATION_CREDENTIALS') and 
            GCP_PROJECT_ID and 
-           GCS_BUCKET_NAME and
-           setup_gcp_credentials())
+           GCS_BUCKET_NAME)
 
 if USE_GCP:
     try:
+        # Ensure credentials are set for all threads
+        logger.info(f"Using service account from: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
         
         storage_client = storage.Client(project=GCP_PROJECT_ID)
         vision_client = vision.ImageAnnotatorClient()
