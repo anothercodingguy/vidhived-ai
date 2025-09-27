@@ -25,11 +25,13 @@ except ImportError:
 try:
     from google.cloud import storage, vision, aiplatform
     from google.cloud.vision_v1 import types
-    from google import genai
-    from google.genai import types as genai_types
+    import vertexai
+    from vertexai.generative_models import GenerativeModel
     GOOGLE_CLOUD_AVAILABLE = True
-except ImportError:
+    logger.info("Google Cloud libraries loaded successfully")
+except ImportError as e:
     GOOGLE_CLOUD_AVAILABLE = False
+    logger.warning(f"Google Cloud libraries not available: {e}")
     print("Google Cloud libraries not available - using fallback mode")
 
 # Optional import for advanced legal analysis
@@ -64,7 +66,7 @@ GOOGLE_CLOUD_API_KEY = os.getenv('GOOGLE_CLOUD_API_KEY')
 storage_client = None
 vision_client = None
 bucket = None
-gemini_client = None
+gemini_model = None
 advanced_analyzer = None
 
 def check_gcs_connectivity():
@@ -105,10 +107,16 @@ if USE_GCP:
         # Ensure credentials are set for all threads
         logger.info(f"Using service account from: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
         
+        # Initialize GCP clients
         storage_client = storage.Client(project=GCP_PROJECT_ID)
         vision_client = vision.ImageAnnotatorClient()
         bucket = storage_client.bucket(GCS_BUCKET_NAME)
         logger.info(f"Initialized GCS bucket: {GCS_BUCKET_NAME}")
+        
+        # Initialize Vertex AI
+        vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION)
+        gemini_model = GenerativeModel("gemini-1.5-flash")
+        logger.info("Vertex AI and Gemini model initialized successfully")
         
         # Test connectivity if requested
         if os.getenv('CHECK_GCS_ON_START', '').lower() == 'true':
@@ -117,34 +125,15 @@ if USE_GCP:
                 logger.info(f"GCS startup check: {message}")
             else:
                 logger.warning(f"GCS startup check failed: {message}")
-                # Disable GCP if connectivity test fails
-                USE_GCP = False
-                storage_client = None
-                vision_client = None
-                bucket = None
         
-        # Initialize Vertex AI
-        if GCP_PROJECT_ID:
-            aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION)
-        
-        # Initialize Gemini AI client
-        if GOOGLE_CLOUD_API_KEY:
-            gemini_client = genai.Client(
-                vertexai=True,
-                api_key=GOOGLE_CLOUD_API_KEY
-            )
-            logger.info("Gemini AI client initialized successfully")
-        else:
-            logger.warning("GOOGLE_CLOUD_API_KEY not provided, Gemini AI features disabled")
-        
-        logger.info("GCP clients initialized successfully")
+        logger.info("All GCP clients initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize GCP clients: {e}")
         USE_GCP = False
         storage_client = None
         vision_client = None
         bucket = None
-        gemini_client = None
+        gemini_model = None
 else:
     logger.info("GCP not configured - using local storage mode")
     logger.info(f"GOOGLE_CLOUD_AVAILABLE: {GOOGLE_CLOUD_AVAILABLE}")
@@ -309,13 +298,13 @@ async def get_ai_explanation(clause_text: str, category: str) -> str:
         return f"Unable to generate explanation for this {category.lower()} risk clause."
 
 def generate_document_summary_and_analysis(full_text: str) -> Dict[str, Any]:
-    """Generate comprehensive document summary using Gemini AI"""
-    if not gemini_client or not full_text.strip():
+    """Generate comprehensive document summary using Vertex AI Gemini"""
+    if not gemini_model or not full_text.strip():
         return {
-            "summary": "Document analysis unavailable - Gemini AI not configured",
+            "summary": "Document analysis unavailable - Vertex AI not configured",
             "key_terms": [],
             "entities": [],
-            "error": "Gemini AI client not available"
+            "error": "Vertex AI Gemini model not available"
         }
     
     try:
@@ -354,29 +343,14 @@ After this, be ready to answer follow-up questions interactively without needing
 Document:
 {full_text}"""
 
-        # Create message content
-        msg_content = genai_types.Part.from_text(text=prompt)
-        contents = [genai_types.Content(role="user", parts=[msg_content])]
-        
-        # Configure generation settings
-        generate_config = genai_types.GenerateContentConfig(
-            temperature=0.3,  # Lower temperature for more consistent legal analysis
-            top_p=0.8,
-            max_output_tokens=4096,
-            safety_settings=[
-                genai_types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
-                genai_types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
-                genai_types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
-                genai_types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
-            ],
-            system_instruction=[genai_types.Part.from_text(text=system_instruction)]
-        )
-        
-        # Generate response
-        response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash-exp",
-            contents=contents,
-            config=generate_config
+        # Generate response using Vertex AI Gemini
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.3,
+                "top_p": 0.8,
+                "max_output_tokens": 4096,
+            }
         )
         
         return {
@@ -396,9 +370,9 @@ Document:
         }
 
 def ask_document_question(full_text: str, question: str, document_context: str = "") -> str:
-    """Ask a specific question about the document using Gemini AI"""
-    if not gemini_client:
-        return "AI question answering unavailable - Gemini AI not configured"
+    """Ask a specific question about the document using Vertex AI Gemini"""
+    if not gemini_model:
+        return "AI question answering unavailable - Vertex AI not configured"
     
     try:
         # System instruction for Q&A
@@ -423,29 +397,14 @@ Question: {question}
 
 Please provide a clear, accurate answer based on the document content."""
 
-        # Create message content
-        msg_content = genai_types.Part.from_text(text=prompt)
-        contents = [genai_types.Content(role="user", parts=[msg_content])]
-        
-        # Configure generation settings
-        generate_config = genai_types.GenerateContentConfig(
-            temperature=0.2,  # Very low temperature for factual Q&A
-            top_p=0.8,
-            max_output_tokens=2048,
-            safety_settings=[
-                genai_types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
-                genai_types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
-                genai_types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
-                genai_types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
-            ],
-            system_instruction=[genai_types.Part.from_text(text=system_instruction)]
-        )
-        
-        # Generate response
-        response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash-exp",
-            contents=contents,
-            config=generate_config
+        # Generate response using Vertex AI Gemini
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.2,
+                "top_p": 0.8,
+                "max_output_tokens": 2048,
+            }
         )
         
         return response.text
@@ -672,6 +631,10 @@ def health():
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "google_cloud_available": GOOGLE_CLOUD_AVAILABLE,
+        "gcp_clients_initialized": USE_GCP,
+        "vertex_ai_available": gemini_model is not None if USE_GCP else False,
+        "vision_api_available": vision_client is not None if USE_GCP else False,
+        "storage_available": storage_client is not None if USE_GCP else False,
         "advanced_analysis_available": ADVANCED_ANALYSIS_AVAILABLE,
         "image_processing_available": IMAGE_PROCESSING_AVAILABLE,
         "gcs_bucket": GCS_BUCKET_NAME,
@@ -707,10 +670,59 @@ def test():
         "timestamp": datetime.utcnow().isoformat(),
         "features": {
             "google_cloud": GOOGLE_CLOUD_AVAILABLE,
+            "gcp_clients_initialized": USE_GCP,
+            "vertex_ai": gemini_model is not None if USE_GCP else False,
+            "vision_api": vision_client is not None if USE_GCP else False,
+            "storage": storage_client is not None if USE_GCP else False,
             "advanced_analysis": ADVANCED_ANALYSIS_AVAILABLE,
             "image_processing": IMAGE_PROCESSING_AVAILABLE
         }
     })
+
+@app.route('/test-gcp', methods=['GET'])
+def test_gcp():
+    """Test all GCP services connectivity"""
+    results = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "gcp_project": GCP_PROJECT_ID,
+        "tests": {}
+    }
+    
+    # Test Storage
+    if storage_client and bucket:
+        try:
+            bucket.reload()
+            results["tests"]["storage"] = {"status": "ok", "bucket": GCS_BUCKET_NAME}
+        except Exception as e:
+            results["tests"]["storage"] = {"status": "error", "error": str(e)}
+    else:
+        results["tests"]["storage"] = {"status": "not_configured"}
+    
+    # Test Vision API
+    if vision_client:
+        try:
+            # Simple test - just check if client is initialized
+            results["tests"]["vision"] = {"status": "ok", "message": "Vision client initialized"}
+        except Exception as e:
+            results["tests"]["vision"] = {"status": "error", "error": str(e)}
+    else:
+        results["tests"]["vision"] = {"status": "not_configured"}
+    
+    # Test Vertex AI
+    if gemini_model:
+        try:
+            # Test with a simple prompt
+            response = gemini_model.generate_content("Hello, respond with 'Vertex AI is working'")
+            results["tests"]["vertex_ai"] = {
+                "status": "ok", 
+                "response": response.text[:100] if response.text else "No response"
+            }
+        except Exception as e:
+            results["tests"]["vertex_ai"] = {"status": "error", "error": str(e)}
+    else:
+        results["tests"]["vertex_ai"] = {"status": "not_configured"}
+    
+    return jsonify(results)
 
 @app.route('/debug/documents', methods=['GET'])
 def debug_documents():
@@ -972,17 +984,17 @@ def ask_question():
         full_text = analysis_result.get("fullText", "")
         document_summary = analysis_result.get("documentSummary", "")
         
-        # Use enhanced Gemini AI for question answering
-        if gemini_client and full_text:
+        # Use Vertex AI Gemini for question answering
+        if gemini_model and full_text:
             answer = ask_document_question(full_text, query, document_summary)
         else:
             # Fallback response
-            answer = f"Based on the document analysis, regarding '{query}': The document contains {len(analysis_result.get('analysis', []))} analyzed clauses. Enhanced AI analysis is not available - please configure GOOGLE_CLOUD_API_KEY."
+            answer = f"Based on the document analysis, regarding '{query}': The document contains {len(analysis_result.get('analysis', []))} analyzed clauses. Enhanced AI analysis is not available - please configure Vertex AI."
         
         return jsonify({
             "answer": answer,
             "documentId": doc_id,
-            "hasAI": gemini_client is not None
+            "hasAI": gemini_model is not None
         })
         
     except Exception as e:

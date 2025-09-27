@@ -55,9 +55,10 @@ echo "Your bucket: $BUCKET_NAME"
    **Backend Service:**
    ```
    GCP_PROJECT_ID=cedar-defender-470311-r9
-   GCS_BUCKET_NAME=your-bucket-name-from-step1
+   GCS_BUCKET_NAME=vidhivedbucket
    GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/vidhived-key-abc123.json
    CORS_ORIGINS=https://vidhived-frontend.onrender.com
+   CHECK_GCS_ON_START=true
    ```
 
    **Frontend Service:**
