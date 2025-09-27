@@ -8,12 +8,11 @@
 
 ## Step 1: GCP Setup
 
-### 1.1 Create GCP Project
+### 1.1 Set GCP Project
 ```bash
 # Install gcloud CLI: https://cloud.google.com/sdk/docs/install
 gcloud auth login
-gcloud projects create vidhived-ai-project --name="Vidhived AI"
-gcloud config set project vidhived-ai-project
+gcloud config set project cedar-defender-470311-r9
 ```
 
 ### 1.2 Enable APIs
@@ -25,7 +24,7 @@ gcloud services enable aiplatform.googleapis.com
 
 ### 1.3 Create Service Account
 ```bash
-PROJECT_ID="vidhived-ai-project"  # Replace with your project ID
+PROJECT_ID="cedar-defender-470311-r9"
 
 gcloud iam service-accounts create vidhived-service \
     --display-name="Vidhived Service Account"
@@ -65,12 +64,20 @@ echo "Your bucket name: $BUCKET_NAME"
 
 ## Step 2: Render.com Setup
 
-### 2.1 Upload Service Account Key
+### 2.1 Handle Service Account Key
 
-1. **Go to Render Dashboard** → Account Settings → Secret Files
-2. **Click "Add Secret File"**
-3. **Upload your `vidhived-key.json` file**
-4. **Copy the file path** (e.g., `/etc/secrets/vidhived-key-abc123.json`)
+Since Render doesn't have a "Secret Files" option, we'll use environment variables to store the service account key content:
+
+1. **Convert your service account key to base64:**
+   ```bash
+   # On Linux/Mac:
+   base64 -w 0 vidhived-key.json > key-base64.txt
+   
+   # On Windows (PowerShell):
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("vidhived-key.json")) > key-base64.txt
+   ```
+
+2. **Copy the base64 content** from `key-base64.txt` (it will be a long string)
 
 ### 2.2 Deploy from GitHub
 
@@ -83,14 +90,16 @@ echo "Your bucket name: $BUCKET_NAME"
 
 **For Backend Service:**
 ```
-GCP_PROJECT_ID=vidhived-ai-project
+GCP_PROJECT_ID=cedar-defender-470311-r9
 GCS_BUCKET_NAME=vidhived-documents-1234567890
-GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/vidhived-key-abc123.json
+GOOGLE_APPLICATION_CREDENTIALS_BASE64=<paste-your-base64-key-here>
 CORS_ORIGINS=https://vidhived-frontend.onrender.com
 CHECK_GCS_ON_START=true
 LOG_LEVEL=INFO
 PORT=10000
 ```
+
+**Note:** Replace `<paste-your-base64-key-here>` with the actual base64 string from step 2.1
 
 **For Frontend Service:**
 ```

@@ -14,14 +14,9 @@ if ! command -v gcloud &> /dev/null; then
     exit 1
 fi
 
-# Get project ID
-read -p "Enter your GCP Project ID (or press Enter to create new): " PROJECT_ID
-
-if [ -z "$PROJECT_ID" ]; then
-    PROJECT_ID="vidhived-ai-$(date +%s)"
-    echo "📝 Creating new project: $PROJECT_ID"
-    gcloud projects create $PROJECT_ID --name="Vidhived AI"
-fi
+# Use existing project ID
+PROJECT_ID="cedar-defender-470311-r9"
+echo "📝 Using existing project: $PROJECT_ID"
 
 echo "🔧 Setting project: $PROJECT_ID"
 gcloud config set project $PROJECT_ID

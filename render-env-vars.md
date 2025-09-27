@@ -5,9 +5,9 @@ Copy these environment variables to your Render services:
 ## Backend Service Environment Variables
 
 ```
-GCP_PROJECT_ID=your-gcp-project-id
+GCP_PROJECT_ID=cedar-defender-470311-r9
 GCS_BUCKET_NAME=your-bucket-name
-GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/vidhived-key-xxxxx.json
+GOOGLE_APPLICATION_CREDENTIALS_BASE64=your-base64-encoded-service-account-key
 CORS_ORIGINS=https://vidhived-frontend.onrender.com
 CHECK_GCS_ON_START=true
 LOG_LEVEL=INFO
@@ -33,8 +33,18 @@ NEXT_TELEMETRY_DISABLED=1
 
 ## Important Notes:
 
-- Replace `your-gcp-project-id` with your actual GCP project ID
+- Your GCP project ID is: `cedar-defender-470311-r9`
 - Replace `your-bucket-name` with your actual GCS bucket name  
-- Replace `/etc/secrets/vidhived-key-xxxxx.json` with the actual path from your uploaded secret file
+- Replace `your-base64-encoded-service-account-key` with the base64 string from your service account JSON
 - The frontend URL should match your actual frontend service URL
 - The backend URL should match your actual backend service URL
+
+## How to get the base64 key:
+
+```bash
+# On Linux/Mac:
+base64 -w 0 vidhived-key.json
+
+# On Windows (PowerShell):
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("vidhived-key.json"))
+```

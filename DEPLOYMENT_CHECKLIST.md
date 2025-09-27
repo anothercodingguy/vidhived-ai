@@ -2,9 +2,9 @@
 
 ## Pre-Deployment (GCP Setup)
 
-- [ ] **GCP Project Created**
+- [ ] **GCP Project Set**
   ```bash
-  gcloud projects create vidhived-ai-project
+  gcloud config set project cedar-defender-470311-r9
   ```
 
 - [ ] **APIs Enabled**
@@ -35,10 +35,16 @@
 
 ## Render Deployment
 
-- [ ] **Secret File Uploaded**
-  - Go to Render → Account Settings → Secret Files
-  - Upload `vidhived-key.json`
-  - Note the file path (e.g., `/etc/secrets/vidhived-key-abc123.json`)
+- [ ] **Service Account Key Prepared**
+  - Convert `vidhived-key.json` to base64:
+    ```bash
+    # Linux/Mac:
+    base64 -w 0 vidhived-key.json
+    
+    # Windows PowerShell:
+    [Convert]::ToBase64String([IO.File]::ReadAllBytes("vidhived-key.json"))
+    ```
+  - Copy the base64 string for environment variables
 
 - [ ] **Repository Connected**
   - Go to Render → New → Blueprint
@@ -47,9 +53,9 @@
 
 - [ ] **Backend Environment Variables Set**
   ```
-  GCP_PROJECT_ID=your-project-id
+  GCP_PROJECT_ID=cedar-defender-470311-r9
   GCS_BUCKET_NAME=your-bucket-name
-  GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/vidhived-key-xxxxx.json
+  GOOGLE_APPLICATION_CREDENTIALS_BASE64=your-base64-key-string
   CORS_ORIGINS=https://vidhived-frontend.onrender.com
   CHECK_GCS_ON_START=true
   LOG_LEVEL=INFO
@@ -82,10 +88,11 @@
 ## Troubleshooting
 
 ### If GCS Connectivity Fails:
-1. Check service account key path in environment variables
+1. Check service account key base64 encoding is correct
 2. Verify bucket name is correct
 3. Check service account permissions
 4. Look at backend logs in Render dashboard
+5. Ensure the base64 string doesn't have line breaks
 
 ### If CORS Errors Occur:
 1. Update `CORS_ORIGINS` with correct frontend URL
