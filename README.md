@@ -179,13 +179,32 @@ docker run -p 3000:3000 \
   vidhived-frontend
 ```
 
-## 🧪 Validation
+## 🧪 Testing & Validation
+
+### PDF Upload Testing
+
+**Test Upload Locally:**
+```bash
+cd backend
+python test_upload.py http://localhost:5000
+```
+
+**Test Upload on Production:**
+```bash
+python backend/test_upload.py https://vidhived-backend.onrender.com
+```
+
+**Manual Upload Test:**
+```bash
+curl -X POST -F "file=@sample.pdf" https://vidhived-backend.onrender.com/upload
+```
 
 ### Backend Validation
 ```bash
 cd backend
-python -m py_compile app.py wsgi.py
-flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+python -m py_compile app.py
+# Test health endpoint
+curl http://localhost:5000/health
 ```
 
 ### Frontend Validation
@@ -194,6 +213,10 @@ cd frontend
 npm run lint
 npm run build
 ```
+
+### Troubleshooting
+
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed debugging steps and common issues.
 
 ## 📡 API Endpoints
 

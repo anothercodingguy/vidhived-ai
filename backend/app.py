@@ -3,8 +3,9 @@ import uuid
 import json
 import logging
 import asyncio
+import io
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 import threading
@@ -66,12 +67,53 @@ bucket = None
 gemini_client = None
 advanced_analyzer = None
 
+def check_gcs_connectivity():
+    """Test GCS connectivity and permissions"""
+    if not GOOGLE_CLOUD_AVAILABLE or not storage_client or not bucket:
+        return False, "GCS not available"
+    
+    try:
+        # Test bucket access
+        bucket.reload()
+        logger.info(f"GCS bucket '{GCS_BUCKET_NAME}' is accessible")
+        
+        # Test write permissions by creating a test blob
+        test_blob = bucket.blob("test-connectivity.txt")
+        test_blob.upload_from_string("connectivity test", content_type="text/plain")
+        
+        # Test read permissions
+        content = test_blob.download_as_text()
+        
+        # Clean up test blob
+        test_blob.delete()
+        
+        logger.info("GCS connectivity test passed - read/write permissions confirmed")
+        return True, "GCS connectivity confirmed"
+        
+    except Exception as e:
+        logger.error(f"GCS connectivity test failed: {e}")
+        return False, f"GCS connectivity failed: {str(e)}"
+
 if GOOGLE_CLOUD_AVAILABLE:
     try:
+        # Ensure credentials are set for all threads
+        if os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
+            logger.info(f"Using service account from: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
+        
         storage_client = storage.Client(project=GCP_PROJECT_ID)
         vision_client = vision.ImageAnnotatorClient()
+        
         if GCS_BUCKET_NAME:
             bucket = storage_client.bucket(GCS_BUCKET_NAME)
+            logger.info(f"Initialized GCS bucket: {GCS_BUCKET_NAME}")
+            
+            # Test connectivity if requested
+            if os.getenv('CHECK_GCS_ON_START', '').lower() == 'true':
+                success, message = check_gcs_connectivity()
+                if success:
+                    logger.info(f"GCS startup check: {message}")
+                else:
+                    logger.warning(f"GCS startup check failed: {message}")
         
         # Initialize Vertex AI
         if GCP_PROJECT_ID:
@@ -610,13 +652,37 @@ def process_document_async(doc_id: str, pdf_blob_name: str):
 
 @app.route('/health', methods=['GET'])
 def health():
-    """Health check endpoint"""
-    return jsonify({
+    """Health check endpoint with GCS connectivity test"""
+    health_info = {
         "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
         "google_cloud_available": GOOGLE_CLOUD_AVAILABLE,
         "advanced_analysis_available": ADVANCED_ANALYSIS_AVAILABLE,
-        "image_processing_available": IMAGE_PROCESSING_AVAILABLE
-    })
+        "image_processing_available": IMAGE_PROCESSING_AVAILABLE,
+        "gcs_bucket": GCS_BUCKET_NAME,
+        "gcp_project": GCP_PROJECT_ID
+    }
+    
+    # Test GCS connectivity
+    if GOOGLE_CLOUD_AVAILABLE and bucket:
+        try:
+            gcs_success, gcs_message = check_gcs_connectivity()
+            health_info["gcs_connectivity"] = {
+                "status": "ok" if gcs_success else "error",
+                "message": gcs_message
+            }
+        except Exception as e:
+            health_info["gcs_connectivity"] = {
+                "status": "error",
+                "message": f"GCS test failed: {str(e)}"
+            }
+    else:
+        health_info["gcs_connectivity"] = {
+            "status": "unavailable",
+            "message": "GCS not configured"
+        }
+    
+    return jsonify(health_info)
 
 @app.route('/test', methods=['GET'])
 def test():
@@ -642,7 +708,7 @@ def debug_documents():
 
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
-    """Upload PDF and start analysis"""
+    """Upload PDF and start analysis with robust GCS integration"""
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
@@ -656,127 +722,194 @@ def upload_pdf():
         
         # Generate document ID
         doc_id = str(uuid.uuid4())
+        logger.info(f"Starting upload for document {doc_id}, filename: {file.filename}")
         
         if GOOGLE_CLOUD_AVAILABLE and bucket:
-            # Upload to GCS if available
-            blob_name = f"uploads/{doc_id}.pdf"
-            blob = bucket.blob(blob_name)
-            blob.upload_from_file(file, content_type='application/pdf')
-            
-            # Generate signed URL for frontend access
-            signed_url = blob.generate_signed_url(
-                version="v4",
-                expiration=datetime.utcnow() + timedelta(hours=24),
-                method="GET"
-            )
-            
-            # Start background processing
-            thread = threading.Thread(target=process_document_async, args=(doc_id, blob_name))
-            thread.daemon = True
-            thread.start()
-            
-            return jsonify({
-                "documentId": doc_id,
-                "pdfUrl": signed_url,
-                "message": "File uploaded successfully. Analysis started."
-            })
-        else:
-            # Fallback: Local storage and basic processing
-            import tempfile
-            import os
-            
-            # Create temp directory if it doesn't exist
-            temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
-            os.makedirs(temp_dir, exist_ok=True)
-            
-            # Save file locally
-            file_path = os.path.join(temp_dir, f"{doc_id}.pdf")
-            file.save(file_path)
-            logger.info(f"Saved PDF to {file_path}")
-            
-            # Initialize job status immediately
-            job_status[doc_id] = {"status": "processing", "message": "Starting document processing..."}
-            logger.info(f"Initialized job status for {doc_id}")
-            
-            # Start basic processing
-            thread = threading.Thread(target=process_document_basic, args=(doc_id, file_path))
-            thread.daemon = True
-            thread.start()
-            logger.info(f"Started processing thread for {doc_id}")
-            
-            # Get the base URL for the response
-            base_url = request.host_url.rstrip('/')
-            pdf_url = f"{base_url}/pdf-file/{doc_id}"
-            
-            return jsonify({
-                "documentId": doc_id,
-                "pdfUrl": pdf_url,
-                "message": "File uploaded successfully. Basic analysis started."
-            })
+            try:
+                # Read file content to avoid file pointer issues
+                file_content = file.read()
+                file_size = len(file_content)
+                logger.info(f"Read PDF file content: {file_size} bytes")
+                
+                # Upload to GCS with proper content type
+                blob_name = f"uploads/{doc_id}.pdf"
+                blob = bucket.blob(blob_name)
+                
+                # Upload using string content to avoid file pointer issues
+                blob.upload_from_string(
+                    file_content, 
+                    content_type='application/pdf'
+                )
+                
+                logger.info(f"Uploaded PDF to GCS at {blob_name}, size {file_size} bytes")
+                
+                # Verify upload was successful
+                if not blob.exists():
+                    raise Exception("Blob upload verification failed - blob does not exist")
+                
+                # Try to generate signed URL
+                signed_url = None
+                try:
+                    signed_url = blob.generate_signed_url(
+                        version="v4",
+                        expiration=datetime.utcnow() + timedelta(hours=1),
+                        method="GET"
+                    )
+                    logger.info(f"Generated signed URL for document {doc_id}")
+                except Exception as signed_url_error:
+                    logger.error(f"Signed URL generation failed for {doc_id}: {signed_url_error}")
+                    signed_url = None
+                
+                # Determine PDF URL - prefer signed URL, fallback to proxy
+                if signed_url:
+                    pdf_url = signed_url
+                    logger.info(f"Using signed URL for document {doc_id}")
+                else:
+                    base_url = request.host_url.rstrip('/')
+                    pdf_url = f"{base_url}/pdf/{doc_id}"
+                    logger.info(f"Using proxy URL for document {doc_id}: {pdf_url}")
+                
+                # Start background processing
+                thread = threading.Thread(target=process_document_async, args=(doc_id, blob_name))
+                thread.daemon = True
+                thread.start()
+                
+                return jsonify({
+                    "documentId": doc_id,
+                    "pdfUrl": pdf_url,
+                    "message": "File uploaded successfully. Analysis started."
+                }), 202
+                
+            except Exception as gcs_error:
+                logger.error(f"GCS upload failed for {doc_id}: {gcs_error}")
+                # Fall through to local storage fallback
+                
+        # Fallback: Local storage and basic processing
+        logger.info(f"Using local storage fallback for document {doc_id}")
+        import os
+        
+        # Create temp directory if it doesn't exist
+        temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Reset file pointer if needed
+        file.seek(0)
+        
+        # Save file locally
+        file_path = os.path.join(temp_dir, f"{doc_id}.pdf")
+        file.save(file_path)
+        
+        # Verify file was saved
+        if not os.path.exists(file_path):
+            raise Exception(f"Failed to save file to {file_path}")
+        
+        file_size = os.path.getsize(file_path)
+        logger.info(f"Saved PDF to local storage: {file_path}, size {file_size} bytes")
+        
+        # Initialize job status immediately
+        job_status[doc_id] = {"status": "processing", "message": "Starting document processing..."}
+        logger.info(f"Initialized job status for {doc_id}")
+        
+        # Start basic processing
+        thread = threading.Thread(target=process_document_basic, args=(doc_id, file_path))
+        thread.daemon = True
+        thread.start()
+        logger.info(f"Started processing thread for {doc_id}")
+        
+        # Return proxy URL for local files
+        base_url = request.host_url.rstrip('/')
+        pdf_url = f"{base_url}/pdf/{doc_id}"
+        
+        return jsonify({
+            "documentId": doc_id,
+            "pdfUrl": pdf_url,
+            "message": "File uploaded successfully. Basic analysis started."
+        }), 202
         
     except Exception as e:
-        logger.error(f"Upload failed: {e}")
+        logger.error(f"Upload failed for document: {e}", exc_info=True)
         return jsonify({"error": f"Upload failed: {str(e)}"}), 500
 
 @app.route('/pdf/<doc_id>', methods=['GET'])
 def serve_pdf(doc_id):
-    """Serve PDF from GCS or local storage"""
+    """Serve PDF directly from GCS or local storage with proper headers"""
     try:
+        logger.info(f"Serving PDF for document {doc_id}")
+        
         if GOOGLE_CLOUD_AVAILABLE and bucket:
             # Serve from GCS
             blob_name = f"uploads/{doc_id}.pdf"
             blob = bucket.blob(blob_name)
             
+            logger.info(f"Checking GCS blob: {blob_name}")
             if not blob.exists():
-                return jsonify({"error": "PDF not found"}), 404
+                logger.error(f"GCS blob not found: {blob_name}")
+                return jsonify({"error": "PDF not found in GCS"}), 404
             
-            # Generate signed URL
-            signed_url = blob.generate_signed_url(
-                version="v4",
-                expiration=datetime.utcnow() + timedelta(hours=1),
-                method="GET"
-            )
-            
-            return jsonify({"pdfUrl": signed_url})
+            try:
+                # Download PDF content from GCS
+                pdf_content = blob.download_as_bytes()
+                logger.info(f"Downloaded PDF from GCS: {len(pdf_content)} bytes")
+                
+                # Create response with proper headers
+                from flask import Response
+                import io
+                
+                response = Response(
+                    pdf_content,
+                    mimetype='application/pdf',
+                    headers={
+                        'Content-Disposition': f'inline; filename="{doc_id}.pdf"',
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'GET',
+                        'Access-Control-Allow-Headers': 'Content-Type, Range',
+                        'Accept-Ranges': 'bytes',
+                        'Content-Length': str(len(pdf_content))
+                    }
+                )
+                
+                logger.info(f"Successfully serving PDF from GCS for {doc_id}")
+                return response
+                
+            except Exception as download_error:
+                logger.error(f"Failed to download PDF from GCS for {doc_id}: {download_error}")
+                return jsonify({"error": "Failed to download PDF from GCS"}), 500
         else:
             # Serve from local storage
             import os
             temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
             file_path = os.path.join(temp_dir, f"{doc_id}.pdf")
             
+            logger.info(f"Checking local file: {file_path}")
             if not os.path.exists(file_path):
-                return jsonify({"error": "PDF not found"}), 404
+                logger.error(f"Local PDF file not found: {file_path}")
+                return jsonify({"error": "PDF not found in local storage"}), 404
             
-            # Return the full URL for the PDF endpoint
-            base_url = request.host_url.rstrip('/')
-            pdf_url = f"{base_url}/pdf-file/{doc_id}"
-            return jsonify({"pdfUrl": pdf_url})
+            try:
+                # Serve file with proper headers
+                response = send_file(
+                    file_path, 
+                    mimetype='application/pdf',
+                    as_attachment=False,
+                    download_name=f"{doc_id}.pdf"
+                )
+                
+                # Add CORS headers
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Range'
+                response.headers['Accept-Ranges'] = 'bytes'
+                
+                logger.info(f"Successfully serving PDF from local storage for {doc_id}")
+                return response
+                
+            except Exception as serve_error:
+                logger.error(f"Failed to serve local PDF for {doc_id}: {serve_error}")
+                return jsonify({"error": "Failed to serve PDF from local storage"}), 500
         
     except Exception as e:
-        logger.error(f"Failed to serve PDF {doc_id}: {e}")
+        logger.error(f"Failed to serve PDF {doc_id}: {e}", exc_info=True)
         return jsonify({"error": "Failed to serve PDF"}), 500
-
-@app.route('/pdf-file/<doc_id>', methods=['GET'])
-def serve_pdf_file(doc_id):
-    """Serve the actual PDF file"""
-    try:
-        import os
-        temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
-        file_path = os.path.join(temp_dir, f"{doc_id}.pdf")
-        
-        if not os.path.exists(file_path):
-            return jsonify({"error": "PDF not found"}), 404
-        
-        response = send_file(file_path, mimetype='application/pdf')
-        # Add CORS headers for PDF files
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-        return response
-        
-    except Exception as e:
-        logger.error(f"Failed to serve PDF file {doc_id}: {e}")
-        return jsonify({"error": "Failed to serve PDF file"}), 500
 
 @app.route('/document/<doc_id>', methods=['GET'])
 def get_document_status(doc_id):
