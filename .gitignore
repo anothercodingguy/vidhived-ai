@@ -38,6 +38,8 @@ build/
 # GCP credentials
 gcp-key.json
 service-account-key.json
+vidhived-key.json
+*.json
 
 # Testing
 coverage/
@@ -61,6 +63,7 @@ dist/
 # Uploads
 uploads/
 temp/
+temp_uploads/
 
 # Cache
 .cache/

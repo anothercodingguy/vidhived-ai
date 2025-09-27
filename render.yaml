@@ -1,19 +1,32 @@
 services:
-  # Backend Flask API (Simple Version - Guaranteed to Work)
+  # Backend Flask API with GCP Integration
   - type: web
     name: vidhived-backend
     env: python
     plan: free
-    buildCommand: "pip install Flask==3.0.0 gunicorn==21.2.0 flask-cors==4.0.0 python-dotenv==1.0.0 PyPDF2==3.0.1"
-    startCommand: "cd backend && gunicorn --bind 0.0.0.0:$PORT app:app"
+    buildCommand: "pip install Flask==3.0.0 gunicorn==21.2.0 flask-cors==4.0.0 python-dotenv==1.0.0 PyPDF2==3.0.1 google-cloud-storage==2.10.0 google-cloud-vision==3.4.4 google-cloud-aiplatform==1.38.1 google-generativeai==0.3.2"
+    startCommand: "cd backend && gunicorn --bind 0.0.0.0:$PORT --timeout 120 --workers 1 app:app"
     envVars:
       - key: FLASK_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: LOG_LEVEL
+        value: INFO
+      # GCP Configuration - Set these in Render Dashboard
+      # - key: GCP_PROJECT_ID
+      #   value: your-gcp-project-id
+      # - key: GCS_BUCKET_NAME  
+      #   value: your-bucket-name
+      # - key: GOOGLE_APPLICATION_CREDENTIALS
+      #   value: /etc/secrets/vidhived-key-xxxxx.json
+      # - key: CORS_ORIGINS
+      #   value: https://vidhived-frontend.onrender.com
+      # - key: CHECK_GCS_ON_START
+      #   value: "true"
     healthCheckPath: /health
 
-  # Frontend Next.js App (Free Tier - Optimized)
+  # Frontend Next.js App
   - type: web
     name: vidhived-frontend
     env: node
@@ -23,7 +36,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NEXT_PUBLIC_API_URL
-        value: https://vidhived-backend.onrender.com
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
+      # Frontend Configuration - Set these in Render Dashboard  
+      # - key: NEXT_PUBLIC_API_URL
+      #   value: https://vidhived-backend.onrender.com

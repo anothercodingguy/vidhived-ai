@@ -46,8 +46,8 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configure CORS
-cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
-CORS(app, origins=cors_origins)
+cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,https://vidhived-frontend.onrender.com').split(',')
+CORS(app, origins=cors_origins, supports_credentials=True)
 
 # Configure logging
 log_level = os.getenv('LOG_LEVEL', 'INFO')
@@ -94,26 +94,34 @@ def check_gcs_connectivity():
         logger.error(f"GCS connectivity test failed: {e}")
         return False, f"GCS connectivity failed: {str(e)}"
 
-if GOOGLE_CLOUD_AVAILABLE:
+# Check if GCP should be used
+USE_GCP = (GOOGLE_CLOUD_AVAILABLE and 
+           os.getenv('GOOGLE_APPLICATION_CREDENTIALS') and 
+           GCP_PROJECT_ID and 
+           GCS_BUCKET_NAME)
+
+if USE_GCP:
     try:
         # Ensure credentials are set for all threads
-        if os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
-            logger.info(f"Using service account from: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
+        logger.info(f"Using service account from: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
         
         storage_client = storage.Client(project=GCP_PROJECT_ID)
         vision_client = vision.ImageAnnotatorClient()
+        bucket = storage_client.bucket(GCS_BUCKET_NAME)
+        logger.info(f"Initialized GCS bucket: {GCS_BUCKET_NAME}")
         
-        if GCS_BUCKET_NAME:
-            bucket = storage_client.bucket(GCS_BUCKET_NAME)
-            logger.info(f"Initialized GCS bucket: {GCS_BUCKET_NAME}")
-            
-            # Test connectivity if requested
-            if os.getenv('CHECK_GCS_ON_START', '').lower() == 'true':
-                success, message = check_gcs_connectivity()
-                if success:
-                    logger.info(f"GCS startup check: {message}")
-                else:
-                    logger.warning(f"GCS startup check failed: {message}")
+        # Test connectivity if requested
+        if os.getenv('CHECK_GCS_ON_START', '').lower() == 'true':
+            success, message = check_gcs_connectivity()
+            if success:
+                logger.info(f"GCS startup check: {message}")
+            else:
+                logger.warning(f"GCS startup check failed: {message}")
+                # Disable GCP if connectivity test fails
+                USE_GCP = False
+                storage_client = None
+                vision_client = None
+                bucket = None
         
         # Initialize Vertex AI
         if GCP_PROJECT_ID:
@@ -132,10 +140,17 @@ if GOOGLE_CLOUD_AVAILABLE:
         logger.info("GCP clients initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize GCP clients: {e}")
+        USE_GCP = False
         storage_client = None
         vision_client = None
         bucket = None
         gemini_client = None
+else:
+    logger.info("GCP not configured - using local storage mode")
+    logger.info(f"GOOGLE_CLOUD_AVAILABLE: {GOOGLE_CLOUD_AVAILABLE}")
+    logger.info(f"GOOGLE_APPLICATION_CREDENTIALS: {bool(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))}")
+    logger.info(f"GCP_PROJECT_ID: {bool(GCP_PROJECT_ID)}")
+    logger.info(f"GCS_BUCKET_NAME: {bool(GCS_BUCKET_NAME)}")
 
 # Initialize Advanced Legal Analyzer (optional)
 if ADVANCED_ANALYSIS_AVAILABLE:
@@ -664,7 +679,7 @@ def health():
     }
     
     # Test GCS connectivity
-    if GOOGLE_CLOUD_AVAILABLE and bucket:
+    if USE_GCP and bucket:
         try:
             gcs_success, gcs_message = check_gcs_connectivity()
             health_info["gcs_connectivity"] = {
@@ -724,7 +739,7 @@ def upload_pdf():
         doc_id = str(uuid.uuid4())
         logger.info(f"Starting upload for document {doc_id}, filename: {file.filename}")
         
-        if GOOGLE_CLOUD_AVAILABLE and bucket:
+        if USE_GCP and bucket:
             try:
                 # Read file content to avoid file pointer issues
                 file_content = file.read()
@@ -836,7 +851,7 @@ def serve_pdf(doc_id):
     try:
         logger.info(f"Serving PDF for document {doc_id}")
         
-        if GOOGLE_CLOUD_AVAILABLE and bucket:
+        if USE_GCP and bucket:
             # Serve from GCS
             blob_name = f"uploads/{doc_id}.pdf"
             blob = bucket.blob(blob_name)
