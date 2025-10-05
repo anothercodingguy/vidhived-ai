@@ -79,8 +79,47 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     if (onClauseClick) onClauseClick(clauseId);
   };
 
-  if (loading) return <div className="pdf-loading flex items-center justify-center h-full text-gray-600 dark:text-dark-text-secondary">Loading PDF…</div>;
-  if (error) return <div className="pdf-error flex items-center justify-center h-full text-red-600 dark:text-red-400">{error}</div>;
+  if (loading) return (
+    <div className="pdf-loading flex flex-col items-center justify-center h-full text-gray-600 dark:text-dark-text-secondary">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 dark:border-dark-text-secondary mb-4"></div>
+      <div>Loading PDF…</div>
+      <div className="text-sm mt-2">This may take up to 30 seconds for large files</div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="pdf-error flex flex-col items-center justify-center h-full text-red-600 dark:text-red-400 p-8">
+      <div className="text-center max-w-2xl w-full">
+        <div className="text-lg font-semibold mb-4">PDF Loading Error</div>
+        <div className="text-sm whitespace-pre-line mb-6">{error}</div>
+        <div className="flex gap-4 justify-center mb-6">
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm"
+          >
+            Retry Loading
+          </button>
+          <button 
+            onClick={() => console.log('PDF URL:', pdfUrl, 'Error details:', error)}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm"
+          >
+            Log Debug Info
+          </button>
+        </div>
+        <div className="text-xs text-gray-500 mt-4">
+          <div className="mb-2">Troubleshooting steps:</div>
+          <ul className="text-left list-disc list-inside space-y-1">
+            <li>Check browser console (F12) for detailed error messages</li>
+            <li>Try refreshing the page or clearing browser cache</li>
+            <li>Ensure stable internet connection</li>
+            <li>Try a different browser or incognito mode</li>
+            <li>Verify the PDF file is not corrupted</li>
+            <li>Check if ad blockers are interfering with PDF loading</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="pdf-viewer-container bg-white dark:bg-black" ref={containerRef}>
