@@ -1,8 +1,13 @@
+# Core Flask dependencies
 Flask==3.0.0
 gunicorn==21.2.0
 flask-cors==4.0.0
 python-dotenv==1.0.0
+
+# PDF processing
 PyPDF2==3.0.1
+
+# Optional: Google Cloud (for advanced features)
 google-cloud-storage==2.10.0
 google-cloud-vision==3.4.4
 google-cloud-aiplatform==1.38.1

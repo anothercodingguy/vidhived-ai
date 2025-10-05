@@ -1,40 +1,20 @@
+'use client';
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getDocument, GlobalWorkerOptions, PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf';
 import type { Clause } from '@/lib/api';
 
-// Set workerSrc for pdfjs with fallback options
+// Set workerSrc for pdfjs
 if (typeof window !== 'undefined' && GlobalWorkerOptions) {
-  // Try multiple CDN sources for better reliability
-  const workerSources = [
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/build/pdf.worker.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js',
-    'https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.min.js'
-  ];
-  
-  GlobalWorkerOptions.workerSrc = workerSources[0];
-  
-  // Add error handling for worker loading
-  const originalWorkerSrc = GlobalWorkerOptions.workerSrc;
-  let workerIndex = 0;
-  
-  const tryNextWorker = () => {
-    workerIndex++;
-    if (workerIndex < workerSources.length) {
-      console.warn(`PDF worker failed, trying fallback ${workerIndex + 1}/${workerSources.length}`);
-      GlobalWorkerOptions.workerSrc = workerSources[workerIndex];
-    }
-  };
-  
-  // Store fallback function globally for error handling
-  (window as any).pdfWorkerFallback = tryNextWorker;
+  GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/build/pdf.worker.min.js';
 }
 
 export interface PdfPageData {
   page: PDFPageProxy;
   pageNumber: number;
   viewport: ReturnType<PDFPageProxy['getViewport']>;
-  canvasRef: React.RefObject<HTMLCanvasElement>;
-  overlayRef: React.RefObject<HTMLDivElement>;
+  canvasRef: { current: HTMLCanvasElement | null };
+  overlayRef: { current: HTMLDivElement | null };
 }
 
 export interface OverlayBox {
@@ -58,13 +38,11 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
   const [scale, setScale] = useState(initialScale);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [highlightedClauseId, setHighlightedClauseId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<string[]>([]); // clause ids
+  const [searchResults, setSearchResults] = useState<string[]>([]);
   const [searchIndex, setSearchIndex] = useState(0);
   const [annotations, setAnnotations] = useState<Record<string, string>>(() => {
-    // Load from localStorage
     if (typeof window !== 'undefined') {
       try {
         return JSON.parse(localStorage.getItem('pdfClauseNotes') || '{}');
@@ -76,64 +54,32 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
   });
   const [overlays, setOverlays] = useState<Record<number, OverlayBox[]>>({});
 
-  // Load PDF with timeout handling
+  // Load PDF
   useEffect(() => {
     let cancelled = false;
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: any;
     
     setLoading(true);
     setError(null);
     
-    // Create a timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => {
-        reject(new Error('PDF loading timed out after 30 seconds. Please check your file, network, or try a different PDF.'));
-      }, 30000); // 30 second timeout
-    });
-    
-    // Add debugging
-    console.log('Loading PDF from URL:', pdfUrl);
-    console.log('PDF.js worker source:', GlobalWorkerOptions.workerSrc);
-    
-    // Validate PDF URL first
     if (!pdfUrl || pdfUrl.trim() === '') {
       setError('No PDF URL provided. Please upload a PDF file first.');
       setLoading(false);
       return;
     }
     
-    // Test if URL is accessible
-    fetch(pdfUrl, { method: 'HEAD' })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`PDF file not accessible: ${response.status} ${response.statusText}`);
-        }
-        console.log('PDF URL is accessible, content-type:', response.headers.get('content-type'));
-      })
-      .catch(fetchError => {
-        console.warn('PDF URL accessibility check failed:', fetchError);
-        // Continue anyway, as some servers don't support HEAD requests
-      });
+    console.log('Loading PDF from URL:', pdfUrl);
     
-    // Load PDF with timeout
+    // Create timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('PDF loading timed out after 30 seconds. Please try refreshing the page.'));
+      }, 30000);
+    });
+    
+    // Load PDF
     Promise.race([
-      getDocument({
-        url: pdfUrl,
-        cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/cmaps/',
-        cMapPacked: true,
-        standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/standard_fonts/',
-        // Add additional options for better loading
-        disableAutoFetch: false,
-        disableStream: false,
-        disableRange: false,
-        // Add progress callback for debugging
-        onProgress: (progress: any) => {
-          if (progress.total > 0) {
-            const percent = Math.round((progress.loaded / progress.total) * 100);
-            console.log(`PDF loading progress: ${percent}% (${progress.loaded}/${progress.total} bytes)`);
-          }
-        },
-      }).promise,
+      getDocument(pdfUrl).promise,
       timeoutPromise
     ]).then((doc: PDFDocumentProxy) => {
       if (cancelled) return;
@@ -141,22 +87,16 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
       setPdf(doc);
       setNumPages(doc.numPages);
       setLoading(false);
+      console.log('PDF loaded successfully');
     }).catch((e: any) => {
       if (cancelled) return;
       clearTimeout(timeoutId);
       
       let errorMessage = 'Failed to load PDF: ';
-      
       if (e.message?.includes('timed out')) {
-        errorMessage += e.message + '\n\nTry a different browser or PDF file. If you see errors in the console, share them for support. Check network tab for PDF worker and file fetch issues.';
-      } else if (e.name === 'InvalidPDFException') {
-        errorMessage += 'Invalid PDF file. Please ensure the file is a valid PDF document.';
-      } else if (e.name === 'MissingPDFException') {
-        errorMessage += 'PDF file not found. Please check the file path or try uploading again.';
-      } else if (e.name === 'UnexpectedResponseException') {
-        errorMessage += 'Network error loading PDF. Please check your internet connection and try again.';
+        errorMessage += 'Loading timed out. Please check your connection and try again.';
       } else {
-        errorMessage += e.message || 'Unknown error occurred while loading PDF.';
+        errorMessage += e.message || 'Unknown error. Please try again.';
       }
       
       setError(errorMessage);
@@ -176,10 +116,10 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
     for (let i = 1; i <= pdf.numPages; i++) {
       data.push({
         pageNumber: i,
-        page: null as any, // will be filled after getPage
+        page: null as any,
         viewport: null as any,
-        canvasRef: { current: null } as React.RefObject<HTMLCanvasElement>,
-        overlayRef: { current: null } as React.RefObject<HTMLDivElement>,
+        canvasRef: { current: null },
+        overlayRef: { current: null },
       });
     }
     setPageData(data);
@@ -192,23 +132,16 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
     clauses.forEach(clause => {
       const pageNum = clause.page_number;
       if (!overlayMap[pageNum]) overlayMap[pageNum] = [];
-      let rect: OverlayBox['rect'] = null;
-      let error: string | undefined = undefined;
-      if (clause.bounding_box && clause.ocr_page_width && clause.ocr_page_height) {
-        // Find the page viewport size
-        // We'll use scale=1 for mapping, then scale by current scale
-        // (pdf.js viewport may have rotation)
-        // We'll recalc on render
-        rect = { left: 0, top: 0, width: 0, height: 0 };
-      } else {
-        error = 'No bounding box or OCR size';
-      }
+      
+      const rect = clause.bounding_box ? { left: 0, top: 0, width: 0, height: 0 } : null;
+      const color = clause.category === 'Red' ? '#ef4444' : clause.category === 'Yellow' ? '#facc15' : '#22c55e';
+      
       overlayMap[pageNum].push({
         clause,
         rect,
-        color: clause.category === 'Red' ? '#ef4444' : clause.category === 'Yellow' ? '#facc15' : '#22c55e',
+        color,
         pageNumber: pageNum,
-        error,
+        error: clause.bounding_box ? undefined : 'No bounding box data'
       });
     });
     setOverlays(overlayMap);
@@ -229,7 +162,7 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
 
   // Annotation persistence
   const addAnnotation = useCallback((clauseId: string, note: string) => {
-    setAnnotations(prev => {
+    setAnnotations((prev: Record<string, string>) => {
       const next = { ...prev, [clauseId]: note };
       if (typeof window !== 'undefined') {
         localStorage.setItem('pdfClauseNotes', JSON.stringify(next));
@@ -237,25 +170,6 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
       return next;
     });
   }, []);
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'n') {
-        // Next clause
-        setSearchIndex(idx => Math.min(idx + 1, searchResults.length - 1));
-      } else if (e.key === 'p') {
-        setSearchIndex(idx => Math.max(idx - 1, 0));
-      } else if (e.key === 'Enter' && searchResults.length > 0) {
-        setHighlightedClauseId(searchResults[searchIndex]);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [searchResults, searchIndex]);
-
-  // Zoom/resize observer (for overlays)
-  // (Implement in PdfViewer for actual DOM size)
 
   return {
     pdf,
