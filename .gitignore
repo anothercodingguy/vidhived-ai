@@ -39,7 +39,7 @@ build/
 gcp-key.json
 service-account-key.json
 vidhived-key.json
-*.json
+# *.json
 
 # Testing
 coverage/

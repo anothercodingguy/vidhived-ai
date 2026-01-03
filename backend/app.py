@@ -11,10 +11,17 @@ from typing import List, Dict, Any
 
 # PDF processing
 try:
-    import PyPDF2
+    import fitz  # PyMuPDF
     PDF_PROCESSING_AVAILABLE = True
 except ImportError:
     PDF_PROCESSING_AVAILABLE = False
+    
+# AI
+try:
+    from groq import Groq
+    AI_AVAILABLE = True
+except ImportError:
+    AI_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -33,47 +40,105 @@ logger = logging.getLogger(__name__)
 documents = {}
 job_status = {}
 
-class LegalPhraseScorer:
-    """Simple legal clause scorer"""
-    
-    HIGH_RISK_PATTERNS = [
-        r'penalty', r'liquidated damages', r'termination', r'breach',
-        r'indemnif', r'liability', r'governing law', r'dispute'
-    ]
-    
-    MEDIUM_RISK_PATTERNS = [
-        r'payment', r'delivery', r'warranty', r'maintenance', r'renewal'
-    ]
-    
-    def score_clause(self, text: str) -> tuple:
-        """Returns (score, category, clause_type)"""
-        text_lower = text.lower()
-        
-        for pattern in self.HIGH_RISK_PATTERNS:
-            if re.search(pattern, text_lower):
-                return (0.8, "Red", "High Risk")
-        
-        for pattern in self.MEDIUM_RISK_PATTERNS:
-            if re.search(pattern, text_lower):
-                return (0.5, "Yellow", "Medium Risk")
-        
-        return (0.2, "Green", "Low Risk")
 
-def extract_text_from_pdf(file_path: str) -> str:
-    """Extract text from PDF file"""
+def get_groq_client():
+    api_key = os.getenv('GROQ_API_KEY')
+    if not api_key:
+        return None
+    return Groq(api_key=api_key)
+
+# Available Groq models in order of preference
+GROQ_MODELS = [
+    "llama-3.3-70b-versatile", # Latest high performance
+    "llama-3.1-8b-instant",    # Extremely fast
+    "mixtral-8x7b-32768",      # Large context fallback
+    "llama3-70b-8192"          # Legacy fallback
+]
+
+def call_groq_api(client, messages, response_format=None):
+    """Try multiple models until one works"""
+    last_error = None
+    
+    for model in GROQ_MODELS:
+        try:
+            logger.info(f"Attempting AI call with model: {model}")
+            params = {
+                "messages": messages,
+                "model": model
+            }
+            if response_format:
+                params["response_format"] = response_format
+                
+            completion = client.chat.completions.create(**params)
+            return completion
+        except Exception as e:
+            logger.warning(f"Model {model} failed: {str(e)}")
+            last_error = e
+            continue
+            
+    # If all models fail
+    raise last_error
+
+def analyze_clause_with_llm(text: str, client) -> dict:
+    """Analyze a single clause/sentence using Groq"""
+    try:
+        prompt = f"""Analyze this legal clause and provide a risk assessment.
+        Clause: "{text}"
+        
+        Return JSON with:
+        - score: 0.0 to 1.0 (1.0 is high risk)
+        - category: "Red", "Yellow", or "Green"
+        - type: specific risk type (e.g., "Liability", "Termination")
+        - explanation: brief explanation (max 15 words)
+        
+        Only return valid JSON."""
+        
+        completion = call_groq_api(
+            client,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        return json.loads(completion.choices[0].message.content)
+    except Exception as e:
+        logger.error(f"LLM analysis failed: {e}")
+        return {"score": 0.5, "category": "Yellow", "type": "Unknown", "explanation": "Analysis failed"}
+
+
+
+def extract_structured_text_from_pdf(file_path: str) -> List[Dict]:
+    """Extract text with coordinates from PDF file using PyMuPDF"""
     if not PDF_PROCESSING_AVAILABLE:
-        return "PDF processing not available. Please install PyPDF2."
+        return []
     
     try:
-        with open(file_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
-        return text
+        doc = fitz.open(file_path)
+        pages_data = []
+        
+        for page_num, page in enumerate(doc):
+            w, h = page.rect.width, page.rect.height
+            blocks = page.get_text("blocks")
+            # blocks format: (x0, y0, x1, y1, "lines of text", block_no, block_type)
+            
+            for b in blocks:
+                if b[6] == 0: # Check if it's text
+                    text = b[4].strip()
+                    if len(text) > 50: # Filter small text fragments
+                        pages_data.append({
+                            "text": text,
+                            "page_number": page_num + 1,
+                            "bbox": {
+                                "x": b[0],
+                                "y": b[1], 
+                                "w": b[2] - b[0],
+                                "h": b[3] - b[1]
+                            },
+                            "page_width": w,
+                            "page_height": h
+                        })
+        return pages_data
     except Exception as e:
-        logger.error(f"PDF text extraction failed: {e}")
-        return f"Error extracting text: {str(e)}"
+        logger.error(f"PDF structured extraction failed: {e}")
+        return []
 
 def analyze_document(doc_id: str, file_path: str):
     """Analyze document and extract clauses"""
@@ -81,52 +146,117 @@ def analyze_document(doc_id: str, file_path: str):
         logger.info(f"Starting analysis for document {doc_id}")
         job_status[doc_id] = {"status": "processing", "message": "Extracting text..."}
         
-        # Extract text
-        full_text = extract_text_from_pdf(file_path)
+        # Extract structured text
+        structured_content = extract_structured_text_from_pdf(file_path)
+        full_text = "\n\n".join([c["text"] for c in structured_content])
         
-        # Simple clause extraction
-        job_status[doc_id]["message"] = "Analyzing clauses..."
-        scorer = LegalPhraseScorer()
+        # Groq Analysis
+        job_status[doc_id]["message"] = "Analyzing with AI..."
+        client = get_groq_client()
         clauses = []
-        
-        # Split into sentences and analyze
-        sentences = re.split(r'[.!?]+', full_text)
         clause_id = 1
         
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if len(sentence) > 50:  # Only analyze substantial sentences
-                score, category, clause_type = scorer.score_clause(sentence)
-                
-                clause = {
+        if not client:
+             # Fallback logic remains same but now adds dummy coordinates
+             for content in structured_content[:10]:
+                clauses.append({
                     "id": f"clause-{clause_id}",
-                    "page_number": 1,  # Simplified
-                    "text": sentence,
-                    "score": score,
-                    "category": category,
-                    "type": clause_type,
-                    "explanation": f"{category} risk clause detected"
-                }
-                clauses.append(clause)
+                    "page_number": content["page_number"],
+                    "text": content["text"],
+                    "score": 0.5,
+                    "category": "Yellow",
+                    "type": "General",
+                    "explanation": "Groq API Key missing",
+                    "bounding_box": {"vertices": [{"x": content["bbox"]["x"], "y": content["bbox"]["y"]}]}, # Simplified vertex
+                    "ocr_page_width": content["page_width"],
+                    "ocr_page_height": content["page_height"]
+                })
                 clause_id += 1
+        else:
+            # Analyze top 15 blocks to respect rate limits
+            for content in structured_content[:15]:
+                text_segment = content["text"]
                 
-                if clause_id > 20:  # Limit for demo
-                    break
+                try:
+                    # Richer Prompt
+                    prompt = f"""Analyze this legal clause.
+                    Clause: "{text_segment}"
+                    
+                    Return JSON with:
+                    - score: 0.0-1.0 (risk level)
+                    - category: "Red", "Yellow", "Green"
+                    - type: e.g. "Liability", "Termination"
+                    - explanation: max 15 words
+                    - summary: 1-line summary
+                    - entities: list of objects {{ "text": "entity_name", "type": "Party/Date/Money" }}
+                    - legal_terms: list of objects {{ "term": "term", "definition": "short definition" }}
+                    """
+                    
+                    completion = call_groq_api(
+                        client,
+                        messages=[{"role": "user", "content": prompt}],
+                        response_format={"type": "json_object"}
+                    )
+                    analysis = json.loads(completion.choices[0].message.content)
+                    
+                    clause = {
+                        "id": f"clause-{clause_id}",
+                        "page_number": content["page_number"],
+                        "text": text_segment,
+                        "score": analysis.get("score", 0.5),
+                        "category": analysis.get("category", "Yellow"),
+                        "type": analysis.get("type", "General"),
+                        "explanation": analysis.get("explanation", "Analyzed by AI"),
+                        # New fields
+                        "summary": analysis.get("summary", ""),
+                        "entities": analysis.get("entities", []),
+                        "legal_terms": analysis.get("legal_terms", []),
+                        # Coordinates
+                        "bounding_box": {
+                            "vertices": [
+                                {"x": content["bbox"]["x"], "y": content["bbox"]["y"]},
+                                {"x": content["bbox"]["x"] + content["bbox"]["w"], "y": content["bbox"]["y"]},
+                                {"x": content["bbox"]["x"] + content["bbox"]["w"], "y": content["bbox"]["y"] + content["bbox"]["h"]},
+                                {"x": content["bbox"]["x"], "y": content["bbox"]["y"] + content["bbox"]["h"]}
+                            ]
+                        },
+                        "ocr_page_width": content["page_width"],
+                        "ocr_page_height": content["page_height"]
+                    }
+                    clauses.append(clause)
+                    clause_id += 1
+                except Exception as e:
+                    logger.error(f"Clause analysis failed: {e}")
+                    continue
         
-        # Generate summary
+        # Generate summary using Groq
         job_status[doc_id]["message"] = "Generating summary..."
+        
+        summary_text = ""
+        if client:
+            try:
+                summary_prompt = f"Summarize this legal document in 3 bullet points highlighting key obligations.\n\nText: {full_text[:3000]}"
+                completion = call_groq_api(
+                    client,
+                    messages=[{"role": "user", "content": summary_prompt}]
+                )
+                summary_text = completion.choices[0].message.content
+            except:
+                summary_text = "AI Summary failed."
+        else:
+            summary_text = "Add GROQ_API_KEY to enable AI summaries."
+
         word_count = len(full_text.split())
         high_risk_count = len([c for c in clauses if c["category"] == "Red"])
         medium_risk_count = len([c for c in clauses if c["category"] == "Yellow"])
         
-        summary = f"""Document Analysis Summary:
+        summary = f"""Document Statistics:
 - Total words: {word_count}
-- Total clauses analyzed: {len(clauses)}
 - High risk clauses: {high_risk_count}
 - Medium risk clauses: {medium_risk_count}
-- Low risk clauses: {len(clauses) - high_risk_count - medium_risk_count}
 
-This is a basic analysis. For advanced AI-powered analysis, please configure Google Cloud services."""
+AI Summary:
+{summary_text}"""
         
         # Save results
         analysis_result = {
@@ -258,31 +388,45 @@ def ask_question():
         if document_id not in documents:
             return jsonify({"error": "Document not found"}), 404
         
-        # Simple keyword-based search in document text
-        doc = documents[document_id]
-        full_text = doc.get('fullText', '')
-        
-        # Find relevant sentences
-        sentences = re.split(r'[.!?]+', full_text)
-        relevant_sentences = []
-        
-        query_words = query.lower().split()
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if any(word in sentence.lower() for word in query_words):
-                relevant_sentences.append(sentence)
-                if len(relevant_sentences) >= 3:  # Limit results
-                    break
-        
-        if relevant_sentences:
-            answer = "Based on the document, here are relevant sections:\n\n" + "\n\n".join(relevant_sentences)
+        client = get_groq_client()
+        if not client:
+             # Fallback to simple keyword search if no key
+            doc = documents[document_id]
+            full_text = doc.get('fullText', '')
+            query_words = query.lower().split()
+            sentences = re.split(r'[.!?]+', full_text)
+            relevant = [s.strip() for s in sentences if any(w in s.lower() for w in query_words) and len(s) > 20][:3]
+            answer = "Groq Key missing. Basic search results:\n" + "\n".join(relevant) if relevant else "No results found."
         else:
-            answer = "I couldn't find specific information about your query in the document. Please try rephrasing your question or check if the topic is covered in the document."
+            # AI Chat using Groq
+            doc = documents[document_id]
+            full_text = doc.get('fullText', '')
+            
+            # Simple RAG: Pass context + query
+            context = full_text[:6000] # Truncate for context window
+            
+            prompt = f"""Answer the user question based ONLY on the following document context.
+            
+            Context:
+            {context}
+            
+            Question: {query}
+            
+            Answer:"""
+            
+            completion = call_groq_api(
+                client,
+                messages=[
+                    {"role": "system", "content": "You are a legal assistant. Answer based on the context provided."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            answer = completion.choices[0].message.content
         
         return jsonify({
             "answer": answer,
             "documentId": document_id,
-            "hasAI": False
+            "hasAI": True
         })
         
     except Exception as e:
@@ -290,5 +434,7 @@ def ask_question():
         return jsonify({"error": f"Failed to answer question: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.environ.get('PORT', 5001))
+    # Create uploads dir on startup
+    os.makedirs(os.path.join(os.getcwd(), 'uploads'), exist_ok=True)
     app.run(host='0.0.0.0', port=port, debug=False)

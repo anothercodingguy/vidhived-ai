@@ -6,7 +6,7 @@ import type { Clause } from '@/lib/api';
 
 // Set workerSrc for pdfjs
 if (typeof window !== 'undefined' && GlobalWorkerOptions) {
-  GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/build/pdf.worker.min.js';
+  GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 }
 
 export interface PdfPageData {
@@ -58,25 +58,25 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
   useEffect(() => {
     let cancelled = false;
     let timeoutId: any;
-    
+
     setLoading(true);
     setError(null);
-    
+
     if (!pdfUrl || pdfUrl.trim() === '') {
       setError('No PDF URL provided. Please upload a PDF file first.');
       setLoading(false);
       return;
     }
-    
+
     console.log('Loading PDF from URL:', pdfUrl);
-    
+
     // Create timeout
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<PDFDocumentProxy>((_, reject) => {
       timeoutId = setTimeout(() => {
         reject(new Error('PDF loading timed out after 30 seconds. Please try refreshing the page.'));
       }, 30000);
     });
-    
+
     // Load PDF
     Promise.race([
       getDocument(pdfUrl).promise,
@@ -91,19 +91,19 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
     }).catch((e: any) => {
       if (cancelled) return;
       clearTimeout(timeoutId);
-      
+
       let errorMessage = 'Failed to load PDF: ';
       if (e.message?.includes('timed out')) {
         errorMessage += 'Loading timed out. Please check your connection and try again.';
       } else {
         errorMessage += e.message || 'Unknown error. Please try again.';
       }
-      
+
       setError(errorMessage);
       setLoading(false);
     });
-    
-    return () => { 
+
+    return () => {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
@@ -132,10 +132,10 @@ export function usePdfViewer({ pdfUrl, clauses, initialScale = 1.0 }: UsePdfView
     clauses.forEach(clause => {
       const pageNum = clause.page_number;
       if (!overlayMap[pageNum]) overlayMap[pageNum] = [];
-      
+
       const rect = clause.bounding_box ? { left: 0, top: 0, width: 0, height: 0 } : null;
       const color = clause.category === 'Red' ? '#ef4444' : clause.category === 'Yellow' ? '#facc15' : '#22c55e';
-      
+
       overlayMap[pageNum].push({
         clause,
         rect,

@@ -1,10 +1,9 @@
 
 // pdf.js and overlay features assume backend returns ocr_page_width/height and bounding_box per clause.
 // If not present, overlays will be disabled for that clause.
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 // Helper to fetch both PDF URL and clause metadata for a document
-export async function fetchPdfAndClauses(documentId: string): Promise<{ pdfUrl: string, clauses: Clause[], analysis: DocumentAnalysis }>
-{
+export async function fetchPdfAndClauses(documentId: string): Promise<{ pdfUrl: string, clauses: Clause[], analysis: DocumentAnalysis }> {
   // Fetch document analysis (includes clause metadata)
   const analysis = await getDocumentStatus(documentId);
   let pdfUrl = '';
@@ -48,6 +47,10 @@ export interface Clause {
   explanation: string
   // Optionally, add annotation?: string for frontend notes
   annotation?: string
+  // New interactive fields
+  summary?: string
+  entities?: Array<{ text: string; type: string }>
+  legal_terms?: Array<{ term: string; definition: string }>
 }
 
 export interface DocumentAnalysis {
@@ -159,17 +162,17 @@ export async function getPDFUrl(documentId: string): Promise<{ pdfUrl: string }>
 
   // Check if response is PDF content or JSON
   const contentType = response.headers.get('content-type') || ''
-  
+
   if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
     // If we got PDF content directly, convert it to a blob URL
     const pdfBlob = await response.blob()
     const pdfUrl = URL.createObjectURL(pdfBlob)
     return { pdfUrl }
   }
-  
+
   // Try to parse as JSON first
   const responseText = await response.text()
-  
+
   // Check if response starts with PDF header
   if (responseText.startsWith('%PDF-')) {
     // Convert PDF text to blob and create URL
@@ -177,7 +180,7 @@ export async function getPDFUrl(documentId: string): Promise<{ pdfUrl: string }>
     const pdfUrl = URL.createObjectURL(pdfBlob)
     return { pdfUrl }
   }
-  
+
   // Try to parse as JSON
   try {
     const jsonData = JSON.parse(responseText)
@@ -225,7 +228,7 @@ export async function analyzeClauses(clauses: Record<string, string>): Promise<A
   return response.json()
 }
 
-export async function extractEntities(text: string): Promise<{entities: Record<string, string[]>, text: string}> {
+export async function extractEntities(text: string): Promise<{ entities: Record<string, string[]>, text: string }> {
   const response = await fetch(`${API_URL}/extract-entities`, {
     method: 'POST',
     headers: {
@@ -242,7 +245,7 @@ export async function extractEntities(text: string): Promise<{entities: Record<s
   return response.json()
 }
 
-export async function scoreImportance(text: string): Promise<{text: string, importance_score: number, risk_level: string}> {
+export async function scoreImportance(text: string): Promise<{ text: string, importance_score: number, risk_level: string }> {
   const response = await fetch(`${API_URL}/score-importance`, {
     method: 'POST',
     headers: {
@@ -259,7 +262,7 @@ export async function scoreImportance(text: string): Promise<{text: string, impo
   return response.json()
 }
 
-export async function summarizeText(text: string): Promise<{original_text: string, summary: string}> {
+export async function summarizeText(text: string): Promise<{ original_text: string, summary: string }> {
   const response = await fetch(`${API_URL}/summarize-text`, {
     method: 'POST',
     headers: {
