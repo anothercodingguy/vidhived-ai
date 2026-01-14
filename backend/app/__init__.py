@@ -28,8 +28,25 @@ def create_app():
     # Register Blueprint
     app.register_blueprint(bp)
     
-    # Create tables
+    # Create tables (with migration support)
     with app.app_context():
-        db.create_all()
+        # Check if we need to migrate (simple check: does Document have pdf_data column?)
+        try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            if 'document' in inspector.get_table_names():
+                columns = [col['name'] for col in inspector.get_columns('document')]
+                if 'pdf_data' not in columns:
+                    # Schema changed, drop and recreate
+                    app.logger.info("Schema migration detected. Recreating tables...")
+                    db.drop_all()
+                    db.create_all()
+                else:
+                    db.create_all()
+            else:
+                db.create_all()
+        except Exception as e:
+            app.logger.warning(f"Migration check failed, creating fresh tables: {e}")
+            db.create_all()
         
     return app
