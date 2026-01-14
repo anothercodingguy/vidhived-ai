@@ -18,6 +18,7 @@ class Document(db.Model):
     status = db.Column(db.String(50), default='pending') # pending, processing, completed, failed
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     message = db.Column(db.Text, default='')
+    pdf_data = db.Column(db.LargeBinary) # Store PDF bytes
     
     # Relationships
     analysis = db.relationship('AnalysisResult', backref='document', uselist=False, cascade="all, delete-orphan")

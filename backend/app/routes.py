@@ -30,13 +30,25 @@ def upload_pdf():
         return jsonify({"error": "Only PDF files are allowed"}), 400
     
     doc_id = str(uuid.uuid4())
+    
+    # Read PDF into memory
+    pdf_bytes = file.read()
+    
+    # Save to temp file for processing
     upload_dir = os.path.join(os.getcwd(), 'uploads')
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, f"{doc_id}.pdf")
-    file.save(file_path)
+    with open(file_path, 'wb') as f:
+        f.write(pdf_bytes)
     
-    # create new document in DB
-    new_doc = Document(id=doc_id, filename=file.filename, status='processing', message='Upload successful')
+    # create new document in DB with PDF data
+    new_doc = Document(
+        id=doc_id, 
+        filename=file.filename, 
+        status='processing', 
+        message='Upload successful',
+        pdf_data=pdf_bytes
+    )
     db.session.add(new_doc)
     db.session.commit()
     
@@ -116,10 +128,17 @@ def get_document_status(document_id: str):
 
 @bp.route('/pdf/<document_id>', methods=['GET'])
 def get_pdf(document_id: str):
-    file_path = os.path.join(os.getcwd(), 'uploads', f"{document_id}.pdf")
-    if not os.path.exists(file_path):
+    doc = Document.query.get(document_id)
+    if not doc or not doc.pdf_data:
         return jsonify({"error": "PDF not found"}), 404
-    return send_file(file_path, mimetype='application/pdf')
+    
+    from io import BytesIO
+    return send_file(
+        BytesIO(doc.pdf_data),
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=doc.filename
+    )
 
 @bp.route('/ask', methods=['POST'])
 def ask_question():
