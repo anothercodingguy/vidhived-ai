@@ -32,8 +32,9 @@ export default function HomePage() {
     try {
       const result = await uploadPDF(file)
       router.push(`/document/${result.documentId}`)
-    } catch (err) {
-      setError('Upload failed. Please try again.')
+    } catch (err: any) {
+      const errorMessage = err.message || 'Upload failed. Please try again.'
+      setError(errorMessage)
       console.error('Upload error:', err)
     } finally {
       setUploading(false)
@@ -46,7 +47,7 @@ export default function HomePage() {
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      
+
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
