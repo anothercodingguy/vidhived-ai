@@ -11,5 +11,5 @@ PyMuPDF==1.25.1
 # AI / LLM
 groq==0.8.0
 httpx==0.27.0
-# Relax pydantic constraint to allow binary wheel selection
-pydantic>=2.7.0
+# Use older stable version with universal wheels
+pydantic==2.5.3
