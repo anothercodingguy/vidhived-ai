@@ -16,10 +16,7 @@ services:
       - key: LOG_LEVEL
         value: INFO
             # IMPORTANT: Set these in Render Dashboard Environment Variables:
-      # GCP_PROJECT_ID=cedar-defender-470311-r9
-      # GCS_BUCKET_NAME=vidhivedbucket
-      # GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/vidhived-key-xxxxx.json
-      - key: CORS_ORIGINS
+      # GROQ_API_KEY=your-groq-api-key      - key: CORS_ORIGINS
         fromService:
           type: web
           name: vidhived-frontend

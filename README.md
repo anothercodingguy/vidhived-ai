@@ -6,8 +6,9 @@ A fullstack AI-powered legal document analysis platform that helps users upload 
 
 **Backend:**
 - Python 3.11+, Flask, gunicorn
-- Google Cloud Platform (Vision API, Storage, Vertex AI)
-- OCR and AI-powered clause analysis
+- Groq Cloud API (Llama 3, Mixtral)
+- PyMuPDF (fitz) for PDF text extraction & analysis
+- SQLAlchemy (SQLite/PostgreSQL) for persistence
 
 **Frontend:**
 - Next.js 14 (TypeScript, React)
@@ -17,68 +18,28 @@ A fullstack AI-powered legal document analysis platform that helps users upload 
 
 **Infrastructure:**
 - Render.com deployment
-- GitHub Actions CI/CD
 - Docker containerization
 
 ## 🚀 Features
 
-- **PDF Upload & Storage**: Secure upload to Google Cloud Storage
-- **OCR Analysis**: Extract text and bounding boxes using Vision API
+- **PDF Upload & Storage**: Secure local/cloud storage
+- **OCR Analysis**: Extract text and bounding boxes using PyMuPDF
 - **Legal Clause Scoring**: AI-powered risk assessment (Red/Yellow/Green)
 - **Interactive PDF Viewer**: Click clauses to highlight in PDF
-- **🤖 Enhanced AI Chat**: Powered by Google Gemini 2.0 Flash for intelligent document Q&A
+- **🤖 Enhanced AI Chat**: Powered by Groq (Llama 3 / Mixtral) for intelligent document Q&A
 - **📋 AI Document Summaries**: Comprehensive analysis with key parties, dates, and obligations
 - **Real-time Processing**: Live status updates during analysis
 
 ## 📋 Prerequisites
 
-### GCP Setup
+### 1. Groq API Key
+1. Sign up at [https://console.groq.com/](https://console.groq.com/)
+2. Create a new API Key
+3. Save it as `GROQ_API_KEY`
 
-1. **Create GCP Project**
-   ```bash
-   gcloud projects create your-project-id
-   gcloud config set project your-project-id
-   ```
-
-2. **Enable Required APIs**
-   ```bash
-   gcloud services enable vision.googleapis.com
-   gcloud services enable storage.googleapis.com
-   gcloud services enable aiplatform.googleapis.com
-   ```
-
-3. **Create Service Account**
-   ```bash
-   gcloud iam service-accounts create vidhived-service-account \
-     --display-name="Vidhived Service Account"
-   ```
-
-4. **Assign Roles**
-   ```bash
-   gcloud projects add-iam-policy-binding your-project-id \
-     --member="serviceAccount:vidhived-service-account@your-project-id.iam.gserviceaccount.com" \
-     --role="roles/storage.objectAdmin"
-   
-   gcloud projects add-iam-policy-binding your-project-id \
-     --member="serviceAccount:vidhived-service-account@your-project-id.iam.gserviceaccount.com" \
-     --role="roles/vision.user"
-   
-   gcloud projects add-iam-policy-binding your-project-id \
-     --member="serviceAccount:vidhived-service-account@your-project-id.iam.gserviceaccount.com" \
-     --role="roles/aiplatform.user"
-   ```
-
-5. **Create and Download Service Account Key**
-   ```bash
-   gcloud iam service-accounts keys create gcp-key.json \
-     --iam-account=vidhived-service-account@your-project-id.iam.gserviceaccount.com
-   ```
-
-6. **Create GCS Bucket**
-   ```bash
-   gsutil mb gs://your-bucket-name
-   gsutil lifecycle set lifecycle.json gs://your-bucket-name
-   ```
+### 2. Python & Node.js
+- Python 3.11+
+- Node.js 18+
 
 ## 🛠 Local Development
 
@@ -142,10 +103,6 @@ A fullstack AI-powered legal document analysis platform that helps users upload 
 
 2. **Create Render account** and connect your GitHub
 
-3. **Upload GCP Service Account Key**
-   - Go to Render Dashboard → Account Settings → Secret Files
-   - Upload your `gcp-key.json` file
-
 4. **Deploy using render.yaml**
    - Create new Blueprint in Render
    - Connect your forked repository
@@ -153,8 +110,7 @@ A fullstack AI-powered legal document analysis platform that helps users upload 
 
 5. **Set Environment Variables**
    ```
-   GCP_PROJECT_ID=your-gcp-project-id
-   GCS_BUCKET_NAME=your-bucket-name
+   GROQ_API_KEY=your-api-key
    ```
 
 ### Manual Docker Deployment
