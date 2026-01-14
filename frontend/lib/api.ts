@@ -123,7 +123,7 @@ export async function uploadPDF(file: File): Promise<UploadResponse> {
   })
 
   if (!response.ok) {
-    let errorMessage = `Upload failed: ${response.status} ${response.statusText}`
+    let errorMessage = `Upload failed to ${API_URL}: ${response.status} ${response.statusText}`
     try {
       const error = await response.json()
       errorMessage = error.error || errorMessage

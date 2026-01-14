@@ -29,8 +29,10 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configure CORS for production
-cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
-CORS(app, origins=cors_origins, supports_credentials=True)
+# Configure CORS - Allow all for easy connectivity
+cors_origins = os.getenv('CORS_ORIGINS', '*')
+CORS(app, resources={r"/*": {"origins": "*"}})
+logger.info(f"CORS Configured. Origins: *")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
