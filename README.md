@@ -216,7 +216,7 @@ npm run build
 
 ### Troubleshooting
 
-See [RENDER_SETUP.md](RENDER_SETUP.md) for detailed setup and troubleshooting.
+See the [deployment section](#-deployment) for setup instructions.
 
 ## 📡 API Endpoints
 
@@ -322,8 +322,6 @@ vidhived/
 ├── frontend/          # Next.js application
 ├── .github/          # CI/CD workflows
 ├── render.yaml       # Production deployment config
-├── DEPLOYMENT.md     # Detailed deployment guide
-└── PROJECT_STRUCTURE.md # Complete project overview
 ```
 
 ## 🚀 Quick Deploy to Production
@@ -333,7 +331,7 @@ vidhived/
    git clone https://github.com/anothercodingguy/vidhived-ai.git
    cd vidhived-ai
    ```
-2. **Follow the [QUICK_START.md](QUICK_START.md) guide** (5 minutes)
+2. **Deploy to Render** using the `render.yaml` file.
 3. **Your legal co-pilot is live!**
 
 ## 🔮 Roadmap
@@ -349,9 +347,3 @@ vidhived/
 ## 🔗 Repository
 
 **GitHub**: https://github.com/anothercodingguy/vidhived-ai
-
-## 📄 Additional Documentation
-
-- [Deployment Guide](DEPLOYMENT.md) - Complete production deployment instructions
-- [🤖 Gemini AI Setup](GEMINI_AI_SETUP.md) - Enhanced AI features configuration
-- [Project Structure](PROJECT_STRUCTURE.md) - Detailed codebase overview

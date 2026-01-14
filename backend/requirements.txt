@@ -6,7 +6,7 @@ python-dotenv==1.0.0
 
 # PDF processing
 # PDF processing
-PyMuPDF==1.23.22
+PyMuPDF==1.25.1
 
 # AI / LLM
 groq
