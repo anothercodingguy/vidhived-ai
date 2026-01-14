@@ -14,7 +14,7 @@ def test_project_structure():
     
     # Backend files
     backend_files = [
-        'backend/app.py',
+        'backend/wsgi.py',
         'backend/requirements.txt',
         'backend/gunicorn.conf.py',
         'backend/.env.example'
