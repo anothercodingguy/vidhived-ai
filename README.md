@@ -1,305 +1,595 @@
-# Vidhived.ai - Legal Co-pilot Application
+# 🎯 Vidhived.ai - AI-Powered Legal Document Intelligence Platform
 
-A fullstack AI-powered legal document analysis platform that helps users upload PDFs, analyze legal clauses, and get intelligent insights through an interactive interface.
+<div align="center">
 
-## 🏗 Tech Stack
+**Transform legal documents into actionable intelligence with AI-powered analysis**
 
-**Backend:**
-- Python 3.11+, Flask, gunicorn
-- Groq Cloud API (Llama 3, Mixtral)
-- PyMuPDF (fitz) for PDF text extraction & analysis
-- SQLAlchemy (SQLite/PostgreSQL) for persistence
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Next.js 14](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
+[![Groq](https://img.shields.io/badge/Powered%20by-Groq-orange)](https://groq.com/)
 
-**Frontend:**
-- Next.js 14 (TypeScript, React)
-- Tailwind CSS for styling
-- PDF.js for document rendering
-- Interactive PDF overlay system
+</div>
 
-**Infrastructure:**
-- Render.com deployment
-- Docker containerization
+---
+
+## 📖 Overview
+
+Vidhived.ai is a production-grade, full-stack legal document analysis platform that leverages cutting-edge AI to help legal professionals, businesses, and individuals understand complex legal documents. Upload a PDF contract, and get instant AI-powered insights including risk scoring, entity extraction, clause summaries, and interactive Q&A.
+
+### ✨ Key Highlights
+
+- 🚀 **Lightning-fast AI analysis** powered by Groq's ultra-low-latency LLM API
+- 📄 **Advanced PDF processing** with PyMuPDF for accurate text and coordinate extraction
+- 🎨 **Interactive PDF viewer** with clickable clause highlighting and tooltips
+- 💾 **Production-ready persistence** using SQLAlchemy (SQLite/PostgreSQL)
+- 🔒 **Enterprise-grade architecture** with modular backend and modern frontend
+- ☁️ **One-click deployment** on Render.com with automatic service provisioning
+
+---
+
+## 🏗️ Tech Stack
+
+### Backend
+| Technology | Purpose |
+|-----------|---------|
+| **Python 3.11+** | Core runtime |
+| **Flask** | Web framework with RESTful API |
+| **Gunicorn** | Production WSGI server |
+| **SQLAlchemy** | ORM for database persistence |
+| **Groq API** | Ultra-fast LLM inference (Llama 3.3, Mixtral) |
+| **PyMuPDF (fitz)** | PDF text extraction with coordinates |
+
+### Frontend
+| Technology | Purpose |
+|-----------|---------|
+| **Next.js 14** | React framework with TypeScript |
+| **Tailwind CSS** | Utility-first styling |
+| **PDF.js** | Client-side PDF rendering |
+| **React Hooks** | State management and effects |
+
+### Infrastructure
+- **Render.com** - Cloud deployment platform
+- **SQLite/PostgreSQL** - Database (configurable)
+- **CORS-enabled API** - Secure cross-origin requests
+
+---
 
 ## 🚀 Features
 
-- **PDF Upload & Storage**: Secure local/cloud storage
-- **OCR Analysis**: Extract text and bounding boxes using PyMuPDF
-- **Legal Clause Scoring**: AI-powered risk assessment (Red/Yellow/Green)
-- **Interactive PDF Viewer**: Click clauses to highlight in PDF
-- **🤖 Enhanced AI Chat**: Powered by Groq (Llama 3 / Mixtral) for intelligent document Q&A
-- **📋 AI Document Summaries**: Comprehensive analysis with key parties, dates, and obligations
-- **Real-time Processing**: Live status updates during analysis
+### 📊 Intelligent Document Analysis
+- **AI-Powered Risk Scoring**: Automatically categorizes clauses as Red (high risk), Yellow (medium risk), or Green (low risk)
+- **Entity Extraction**: Identifies parties, dates, monetary amounts, and legal terms
+- **Clause Summarization**: Generates concise summaries for complex legal language
+- **Document Insights**: Comprehensive analysis with key obligations, deadlines, and parties
+
+### 🔍 Interactive PDF Experience
+- **Bounding Box Highlighting**: Click on analyzed clauses to see their exact location in the PDF
+- **Coordinate-Precise Overlays**: Uses PyMuPDF-extracted coordinates for pixel-perfect highlighting
+- **Legal Term Tooltips**: Hover over legal jargon to see instant definitions
+- **Multi-Page Navigation**: Seamlessly navigate through long documents
+
+### 💬 AI Chat Assistant
+- **Context-Aware Q&A**: Ask questions about your document and get intelligent answers
+- **Multi-Model Fallback**: Automatically tries Llama 3.3 → Llama 3.1 → Mixtral for reliability
+- **Document-Specific Context**: Chat understands the full content of your uploaded document
+
+### 🏛️ Production-Grade Architecture
+- **Database Persistence**: All documents and analyses stored in SQLAlchemy-managed database
+- **Modular Backend**: Clean separation of models, services, and routes
+- **RESTful API Design**: Standard HTTP methods and status codes
+- **Health Checks**: Built-in `/health` endpoint for monitoring
+- **CORS Support**: Configurable cross-origin resource sharing
+
+---
 
 ## 📋 Prerequisites
 
-### 1. Groq API Key
-1. Sign up at [https://console.groq.com/](https://console.groq.com/)
-2. Create a new API Key
-3. Save it as `GROQ_API_KEY`
+### 1. Groq API Key (Required)
+Groq provides ultra-fast LLM inference with generous free tier limits.
 
-### 2. Python & Node.js
-- Python 3.11+
-- Node.js 18+
+1. Visit [console.groq.com](https://console.groq.com/)
+2. Create a free account
+3. Navigate to API Keys → Create API Key
+4. Copy your API key (starts with `gsk_...`)
 
-## 🛠 Local Development
+### 2. Development Tools
+- **Python 3.11+** ([Download](https://www.python.org/downloads/))
+- **Node.js 18+** ([Download](https://nodejs.org/))
+- **Git** ([Download](https://git-scm.com/))
+
+---
+
+## 🛠️ Local Development
 
 ### Backend Setup
 
-1. **Navigate to backend directory**
-   ```bash
-   cd backend
-   ```
+```bash
+# 1. Navigate to backend directory
+cd backend
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+# 2. Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+# 3. Install dependencies
+pip install -r requirements.txt
 
-4. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your GCP configuration
-   ```
+# 4. Set up environment variables
+cp .env.example .env
+# Edit .env and add your GROQ_API_KEY
 
-5. **Run the application**
-   ```bash
-   python app.py
-   ```
+# 5. Initialize database (auto-created on first run)
+# The SQLite database will be created at backend/instance/vidhived.db
+
+# 6. Run the development server
+python wsgi.py  # Runs on http://localhost:5001
+```
+
+**Environment Variables (backend/.env):**
+```env
+GROQ_API_KEY=gsk_your_groq_api_key_here
+DATABASE_URL=sqlite:///instance/vidhived.db  # Optional: use PostgreSQL in production
+LOG_LEVEL=INFO
+CORS_ORIGINS=http://localhost:3000
+```
 
 ### Frontend Setup
 
-1. **Navigate to frontend directory**
-   ```bash
-   cd frontend
-   ```
+```bash
+# 1. Navigate to frontend directory
+cd frontend
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+# 2. Install dependencies
+npm install
 
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your API URL
-   ```
+# 3. Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with backend URL
 
-4. **Run the development server**
-   ```bash
-   npm run dev
-   ```
+# 4. Run development server
+npm run dev  # Runs on http://localhost:3000
+```
 
-## 🚀 Deployment
+**Environment Variables (frontend/.env.local):**
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5001
+```
 
-### Render.com Deployment
+### 🎉 Access the Application
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **Backend API**: [http://localhost:5001](http://localhost:5001)
+- **Health Check**: [http://localhost:5001/health](http://localhost:5001/health)
 
-1. **Fork this repository**
+---
 
-2. **Create Render account** and connect your GitHub
+## ☁️ Production Deployment
 
-4. **Deploy using render.yaml**
-   - Create new Blueprint in Render
-   - Connect your forked repository
-   - Render will automatically deploy both services
+### Option 1: One-Click Render Deployment (Recommended)
 
-5. **Set Environment Variables**
-   ```
-   GROQ_API_KEY=your-api-key
-   ```
+This repository includes a `render.yaml` blueprint for automatic deployment.
 
-### Manual Docker Deployment
+1. **Fork this repository** to your GitHub account
 
-**Backend:**
+2. **Create Render account** at [render.com](https://render.com/)
+
+3. **Create New Blueprint** in Render Dashboard
+   - Click "New" → "Blueprint"
+   - Connect your GitHub repository
+   - Select the forked `vidhived-ai` repository
+
+4. **Set Environment Variable** in Render Dashboard
+   - Navigate to `vidhived-backend` service
+   - Settings → Environment
+   - Add: `GROQ_API_KEY` = `gsk_your_groq_api_key_here`
+
+5. **Deploy** 🚀
+   - Render will automatically:
+     - Build both backend and frontend
+     - Configure service URLs
+     - Set up health checks
+     - Deploy to production
+
+### Option 2: Manual Deployment
+
+**Backend (Flask + Gunicorn):**
 ```bash
 cd backend
-docker build -t vidhived-backend .
-docker run -p 5000:5000 \
-  -e GCP_PROJECT_ID=your-project-id \
-  -e GCS_BUCKET_NAME=your-bucket-name \
-  -v /path/to/gcp-key.json:/etc/secrets/gcp-key.json \
-  vidhived-backend
+gunicorn --bind 0.0.0.0:$PORT --timeout 120 --workers 1 wsgi:app
+```
+
+**Frontend (Next.js):**
+```bash
+cd frontend
+npm run build
+npm start
+```
+
+### Production Environment Variables
+
+**Backend:**
+```env
+GROQ_API_KEY=gsk_your_production_key
+DATABASE_URL=postgresql://user:pass@host:5432/vidhived  # Or SQLite
+CORS_ORIGINS=https://your-frontend-url.onrender.com
+LOG_LEVEL=WARNING
 ```
 
 **Frontend:**
-```bash
-cd frontend
-docker build -t vidhived-frontend .
-docker run -p 3000:3000 \
-  -e NEXT_PUBLIC_API_URL=http://localhost:5000 \
-  vidhived-frontend
+```env
+NEXT_PUBLIC_API_URL=https://your-backend-url.onrender.com
 ```
 
-## 🧪 Testing & Validation
+---
 
-### PDF Upload Testing
+## 📡 API Reference
 
-**Test Upload Locally:**
+### Core Endpoints
+
+#### 📤 Upload Document
+```http
+POST /upload
+Content-Type: multipart/form-data
+
+file: <PDF file>
+
+Response:
+{
+  "documentId": "uuid-v4",
+  "filename": "contract.pdf",
+  "status": "processing",
+  "message": "Document uploaded successfully"
+}
+```
+
+#### 📊 Get Document Analysis
+```http
+GET /document/:documentId
+
+Response:
+{
+  "documentId": "uuid-v4",
+  "status": "completed",
+  "fullText": "Full extracted text...",
+  "documentSummary": "AI-generated summary...",
+  "analysis": [
+    {
+      "id": "clause-1",
+      "text": "Party A agrees to...",
+      "category": "Red",
+      "score": 0.85,
+      "type": "Liability",
+      "explanation": "High financial risk...",
+      "summary": "Unlimited liability clause",
+      "entities": [
+        {"text": "Party A", "type": "Party"},
+        {"text": "$100,000", "type": "Money"}
+      ],
+      "legal_terms": [
+        {"term": "indemnify", "definition": "To compensate for harm or loss"}
+      ],
+      "bounding_box": {
+        "vertices": [{"x": 72, "y": 120}, ...]
+      },
+      "page_number": 1,
+      "ocr_page_width": 612,
+      "ocr_page_height": 792
+    }
+  ]
+}
+```
+
+#### 📄 Get PDF File
+```http
+GET /pdf/:documentId
+
+Response:
+{
+  "pdfUrl": "data:application/pdf;base64,..."
+}
+```
+
+#### 💬 Ask Question
+```http
+POST /ask
+Content-Type: application/json
+
+{
+  "documentId": "uuid-v4",
+  "query": "What are the termination conditions?"
+}
+
+Response:
+{
+  "answer": "The contract can be terminated...",
+  "documentId": "uuid-v4",
+  "hasAI": true
+}
+```
+
+#### 🏥 Health Check
+```http
+GET /health
+
+Response:
+{
+  "status": "healthy",
+  "database": "connected",
+  "groq_api": "configured"
+}
+```
+
+---
+
+## 🏛️ Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        USER BROWSER                          │
+│                     (Next.js Frontend)                       │
+│                                                              │
+│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │  Upload UI  │  │  PDF Viewer  │  │  Chat Interface  │  │
+│  └─────────────┘  └──────────────┘  └──────────────────┘  │
+└──────────────────────┬───────────────────────────────────────┘
+                       │ HTTP/REST
+                       ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      FLASK BACKEND API                       │
+│                       (Python 3.11)                          │
+│                                                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  Routes Layer (app.py)                                │  │
+│  │  /upload, /document/:id, /ask, /pdf/:id              │  │
+│  └────────────┬──────────────────────────────────────────┘  │
+│               ▼                                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  Services Layer (app/services.py)                     │  │
+│  │  - extract_structured_text_from_pdf()                 │  │
+│  │  - analyze_clause_worker()                            │  │
+│  │  - process_document()                                 │  │
+│  │  - call_groq_api()                                    │  │
+│  └────────────┬──────────────────────────────────────────┘  │
+│               ▼                                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  Models Layer (app/models.py)                         │  │
+│  │  - Document (SQLAlchemy model)                        │  │
+│  │  - AnalysisResult (SQLAlchemy model)                  │  │
+│  └───────────────────────────────────────────────────────┘  │
+└──────────┬───────────────────────────────────┬───────────────┘
+           │                                   │
+           ▼                                   ▼
+┌──────────────────────┐         ┌─────────────────────────────┐
+│  GROQ CLOUD API      │         │  SQLAlchemy Database        │
+│  - Llama 3.3 70B     │         │  - SQLite (dev)             │
+│  - Llama 3.1 8B      │         │  - PostgreSQL (prod)        │
+│  - Mixtral 8x7B      │         │                             │
+└──────────────────────┘         └─────────────────────────────┘
+```
+
+### Data Flow
+
+1. **Upload**: User uploads PDF → Backend saves to DB + disk → Returns document ID
+2. **Processing**: Background analysis extracts text → Sends to Groq API → Stores results
+3. **Viewing**: Frontend fetches PDF + analysis → Renders with PDF.js → Displays interactive overlays
+4. **Chat**: User asks question → Backend sends document context + query to Groq → Returns answer
+
+---
+
+## 🔍 How It Works
+
+### 1. PDF Text Extraction (PyMuPDF)
+```python
+# Extract text blocks with precise coordinates
+doc = fitz.open("contract.pdf")
+for page in doc:
+    blocks = page.get_text("blocks")  # Returns (x0, y0, x1, y1, text, ...)
+    # Each block includes exact pixel coordinates for highlighting
+```
+
+### 2. AI Analysis (Groq API)
+```python
+# Multi-model fallback for reliability
+GROQ_MODELS = [
+    "llama-3.3-70b-versatile",  # Latest, most accurate
+    "llama-3.1-8b-instant",     # Extremely fast
+    "mixtral-8x7b-32768",       # Large context fallback
+]
+
+# Structured JSON output for reliable parsing
+completion = client.chat.completions.create(
+    model="llama-3.3-70b-versatile",
+    messages=[{"role": "user", "content": prompt}],
+    response_format={"type": "json_object"}
+)
+```
+
+### 3. Risk Categorization
+- **Red (0.7-1.0)**: Liability, penalties, termination without cause, unlimited obligations
+- **Yellow (0.4-0.69)**: Payment terms, delivery deadlines, standard warranties
+- **Green (0.0-0.39)**: Definitions, general provisions, standard clauses
+
+### 4. Interactive Overlays
+```typescript
+// Frontend uses OCR coordinates to position highlights
+const overlay = {
+  left: (bbox.x / ocr_page_width) * 100 + '%',
+  top: (bbox.y / ocr_page_height) * 100 + '%',
+  width: (bbox.w / ocr_page_width) * 100 + '%',
+  height: (bbox.h / ocr_page_height) * 100 + '%'
+}
+```
+
+---
+
+## 🧪 Testing
+
+### Backend API Tests
 ```bash
 cd backend
-python test_upload.py http://localhost:5000
-```
 
-**Test Upload on Production:**
-```bash
-python backend/test_upload.py https://vidhived-backend.onrender.com
-```
-
-**Manual Upload Test:**
-```bash
-curl -X POST -F "file=@sample.pdf" https://vidhived-backend.onrender.com/upload
-```
-
-### Backend Validation
-```bash
-cd backend
-python -m py_compile app.py
 # Test health endpoint
-curl http://localhost:5000/health
+curl http://localhost:5001/health
+
+# Test PDF upload
+curl -X POST -F "file=@sample_contract.pdf" http://localhost:5001/upload
+
+# Test document status
+curl http://localhost:5001/document/{documentId}
+
+# Test Q&A
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"documentId":"123","query":"What is the payment term?"}' \
+  http://localhost:5001/ask
 ```
 
-### Frontend Validation
+### Frontend Tests
 ```bash
 cd frontend
+
+# Run linter
 npm run lint
+
+# Build production bundle (validates TypeScript)
 npm run build
 ```
 
-### Troubleshooting
-
-See the [deployment section](#-deployment) for setup instructions.
-
-## 📡 API Endpoints
-
-### Backend API
-
-- `GET /health` - Health check
-- `POST /upload` - Upload PDF file
-- `GET /pdf/<docId>` - Get PDF signed URL
-- `GET /document/<docId>` - Get analysis status/results
-- `POST /ask` - Ask questions about document
-
-### Example API Usage
-
-**Upload Document:**
-```bash
-curl -X POST -F "file=@document.pdf" http://localhost:5000/upload
+### End-to-End Test Script
+```python
+# Use the provided test script
+python simple_test.py http://localhost:5001
 ```
 
-**Check Status:**
-```bash
-curl http://localhost:5000/document/{documentId}
-```
-
-**Ask Question:**
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"documentId":"123","query":"What are the payment terms?"}' \
-  http://localhost:5000/ask
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-**Backend (.env):**
-```env
-GCP_PROJECT_ID=your-gcp-project-id
-GCP_REGION=us-central1
-GCS_BUCKET_NAME=your-bucket-name
-GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/gcp-key.json
-GOOGLE_CLOUD_API_KEY=your-google-cloud-api-key
-CORS_ORIGINS=https://your-frontend-url.com
-LOG_LEVEL=INFO
-```
-
-**Frontend (.env.local):**
-```env
-NEXT_PUBLIC_API_URL=https://your-backend-url.com
-```
-
-## 🏛 Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend      │    │   Google Cloud  │
-│   (Next.js)     │◄──►│    (Flask)      │◄──►│   (Vision API)  │
-│                 │    │                 │    │   (Storage)     │
-│ • PDF Viewer    │    │ • OCR Pipeline  │    │   (Vertex AI)   │
-│ • Clause UI     │    │ • Clause Scorer │    │                 │
-│ • Chat Interface│    │ • API Endpoints │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-## 🔍 Legal Clause Analysis
-
-The system analyzes legal documents using:
-
-1. **OCR Extraction**: Vision API extracts text and bounding boxes
-2. **Clause Identification**: Regex patterns identify legal clauses
-3. **Risk Scoring**: ML-based scoring (Red/Yellow/Green categories)
-4. **AI Explanations**: Vertex AI generates plain-English explanations
-
-### Risk Categories
-
-- **Red (High Risk)**: Penalty clauses, liability terms, termination conditions
-- **Yellow (Medium Risk)**: Payment terms, delivery dates, warranties
-- **Green (Low Risk)**: General terms, standard clauses
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in this repository
-- Check the [documentation](docs/)
-- Review the [API documentation](docs/api.md)
+---
 
 ## 📁 Project Structure
 
 ```
-vidhived/
-├── backend/           # Flask API with GCP integration
-├── frontend/          # Next.js application
-├── .github/          # CI/CD workflows
-├── render.yaml       # Production deployment config
+vidhived-ai/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py          # Flask app factory
+│   │   ├── models.py            # SQLAlchemy models (Document, AnalysisResult)
+│   │   ├── routes.py            # API endpoints
+│   │   └── services.py          # Business logic (PDF processing, Groq calls)
+│   ├── instance/                # SQLite database (auto-created)
+│   ├── uploads/                 # Uploaded PDF storage
+│   ├── logs/                    # Application logs
+│   ├── requirements.txt         # Python dependencies
+│   ├── wsgi.py                  # Production entry point
+│   ├── gunicorn.conf.py         # Gunicorn configuration
+│   └── .env                     # Environment variables (not in git)
+├── frontend/
+│   ├── app/                     # Next.js app router
+│   ├── components/              # React components
+│   ├── lib/
+│   │   └── api.ts               # Backend API client
+│   ├── public/                  # Static assets
+│   ├── package.json             # Node dependencies
+│   └── .env.local               # Environment variables (not in git)
+├── render.yaml                  # Render.com deployment blueprint
+├── LICENSE                      # MIT License
+├── README.md                    # This file
+└── simple_test.py               # E2E test script
 ```
 
-## 🚀 Quick Deploy to Production
+---
 
-1. **Clone this repository**
-   ```bash
-   git clone https://github.com/anothercodingguy/vidhived-ai.git
-   cd vidhived-ai
-   ```
-2. **Deploy to Render** using the `render.yaml` file.
-3. **Your legal co-pilot is live!**
+## 🤝 Contributing
+
+We welcome contributions! Here's how to get started:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Make** your changes with clear commit messages
+4. **Test** your changes locally
+5. **Push** to your fork (`git push origin feature/amazing-feature`)
+6. **Open** a Pull Request with a detailed description
+
+### Development Guidelines
+- Follow PEP 8 for Python code
+- Use TypeScript for frontend code
+- Write clear commit messages
+- Add tests for new features
+- Update documentation as needed
+
+---
+
+## 🐛 Troubleshooting
+
+### Backend Issues
+
+**"GROQ_API_KEY not found"**
+- Ensure `.env` file exists in `backend/` directory
+- Verify the API key starts with `gsk_`
+- Check the key is valid at [console.groq.com](https://console.groq.com/)
+
+**"Database connection failed"**
+- Check `DATABASE_URL` in `.env`
+- Ensure `instance/` directory exists and is writable
+- For PostgreSQL, verify connection string format
+
+**"Module not found" errors**
+- Activate virtual environment: `source venv/bin/activate`
+- Reinstall dependencies: `pip install -r requirements.txt`
+
+### Frontend Issues
+
+**"Failed to connect to backend"**
+- Verify backend is running on port 5001
+- Check `NEXT_PUBLIC_API_URL` in `.env.local`
+- Test backend health: `curl http://localhost:5001/health`
+
+**Build errors**
+- Delete `.next` folder and `node_modules`
+- Reinstall: `npm install`
+- Rebuild: `npm run build`
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## 🔮 Roadmap
 
-- [ ] Multi-language document support
-- [ ] Advanced AI models for clause analysis
-- [ ] Document comparison features
-- [ ] Team collaboration tools
-- [ ] API rate limiting and authentication
-- [ ] Advanced search and filtering
-- [ ] Export analysis reports
+- [ ] **Multi-document comparison** - Compare contracts side-by-side
+- [ ] **Advanced search** - Full-text search across all documents
+- [ ] **Export reports** - Generate PDF/DOCX analysis reports
+- [ ] **User authentication** - JWT-based user accounts
+- [ ] **Team workspaces** - Collaborative document review
+- [ ] **API rate limiting** - Redis-based request throttling
+- [ ] **Webhook notifications** - Real-time analysis updates
+- [ ] **Multi-language support** - Analyze documents in Spanish, French, etc.
+- [ ] **Custom risk models** - Train domain-specific risk scorers
 
-## 🔗 Repository
+---
 
-**GitHub**: https://github.com/anothercodingguy/vidhived-ai
+## 🔗 Links
+
+- **GitHub Repository**: [anothercodingguy/vidhived-ai](https://github.com/anothercodingguy/vidhived-ai)
+- **Groq Documentation**: [console.groq.com/docs](https://console.groq.com/docs)
+- **PyMuPDF Docs**: [pymupdf.readthedocs.io](https://pymupdf.readthedocs.io/)
+- **Next.js Docs**: [nextjs.org/docs](https://nextjs.org/docs)
+
+---
+
+## 📧 Support
+
+Need help? Here's how to get in touch:
+
+- **Issues**: [Create an issue](https://github.com/anothercodingguy/vidhived-ai/issues)
+- **Discussions**: [Join the discussion](https://github.com/anothercodingguy/vidhived-ai/discussions)
+- **Email**: Open an issue for the best response
+
+---
+
+<div align="center">
+
+**Made with ❤️ by the Vidhived.ai Team**
+
+[⭐ Star this repo](https://github.com/anothercodingguy/vidhived-ai) if you find it helpful!
+
+</div>
