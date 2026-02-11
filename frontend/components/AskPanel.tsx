@@ -1,143 +1,141 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { askQuestion } from '@/lib/api'
+import AudioPlayer from './AudioPlayer'
 
-interface AskPanelProps {
-  documentId: string
-  documentSummary?: string
-}
-
-interface ChatMessage {
-  type: 'user' | 'assistant'
+interface Message {
+  role: 'user' | 'assistant'
   content: string
   timestamp: Date
 }
 
-export default function AskPanel({ documentId, documentSummary }: AskPanelProps) {
-  const [query, setQuery] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+interface AskPanelProps {
+  documentId: string
+}
+
+export default function AskPanel({ documentId }: AskPanelProps) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Add document summary as first message when component loads
   useEffect(() => {
-    if (documentSummary && messages.length === 0) {
-      const summaryMessage: ChatMessage = {
-        type: 'assistant',
-        content: `📄 **Document Summary**\n\n${documentSummary}`,
-        timestamp: new Date()
-      }
-      setMessages([summaryMessage])
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [documentSummary, messages.length])
+  }, [messages])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!query.trim()) return
+  const sendMessage = useCallback(async () => {
+    const q = input.trim()
+    if (!q || loading) return
 
-    const userMessage: ChatMessage = {
-      type: 'user',
-      content: query,
-      timestamp: new Date()
-    }
-
-    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    const userMsg: Message = { role: 'user', content: q, timestamp: new Date() }
+    setMessages(prev => [...prev, userMsg])
     setLoading(true)
-    setError('')
-    setQuery('')
 
     try {
-      const result = await askQuestion(documentId, query)
-      const assistantMessage: ChatMessage = {
-        type: 'assistant',
-        content: result.answer,
-        timestamp: new Date()
+      const result = await askQuestion(documentId, q)
+      const assistantMsg: Message = { role: 'assistant', content: result.answer, timestamp: new Date() }
+      setMessages(prev => [...prev, assistantMsg])
+    } catch (err: any) {
+      const errorMsg: Message = {
+        role: 'assistant',
+        content: err.message || 'Sorry, something went wrong. Please try again.',
+        timestamp: new Date(),
       }
-      setMessages(prev => [...prev, assistantMessage])
-    } catch (err) {
-      setError('Failed to get answer. Please try again.')
-      console.error('Ask question error:', err)
+      setMessages(prev => [...prev, errorMsg])
     } finally {
       setLoading(false)
+      inputRef.current?.focus()
     }
-  }
+  }, [input, loading, documentId])
 
   return (
-    <div className="bg-white dark:bg-dark-card border-t border-gray-200 dark:border-dark-border flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-dark-border">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Document Chat</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400">Ask questions about the document</p>
-      </div>
-      
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] rounded-lg p-3 ${
-                message.type === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-dark-text'
-              }`}
-            >
-              <div className="text-sm whitespace-pre-wrap">{message.content}</div>
-              <div className={`text-xs mt-1 ${
-                message.type === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-              }`}>
-                {message.timestamp.toLocaleTimeString()}
+    <div className="flex flex-col h-full">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3" ref={scrollRef}>
+        {messages.length === 0 && !loading && (
+          <div className="flex flex-col items-center justify-center h-full text-center animate-fadeIn">
+            <div className="text-3xl mb-3">💬</div>
+            <p className="font-medium text-sm mb-1" style={{ color: 'rgb(var(--color-text))' }}>
+              Ask about your document
+            </p>
+            <p className="text-xs max-w-xs" style={{ color: 'rgb(var(--color-text-muted))' }}>
+              Ask questions like &ldquo;What are the termination conditions?&rdquo; or &ldquo;Summarize the payment terms&rdquo;
+            </p>
+
+            <div className="flex flex-wrap gap-2 mt-4 max-w-sm justify-center">
+              {['What are the key obligations?', 'Summarize the risks', 'Explain payment terms'].map(q => (
+                <button
+                  key={q}
+                  onClick={() => { setInput(q); setTimeout(sendMessage, 100) }}
+                  className="text-xs px-3 py-1.5 rounded-full border transition-colors"
+                  style={{
+                    borderColor: 'rgb(var(--color-border))',
+                    color: 'rgb(var(--color-text-secondary))',
+                    background: 'rgb(var(--color-surface))',
+                  }}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}>
+            <div className="flex flex-col gap-1 max-w-[85%]">
+              <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>
+                <p className="whitespace-pre-wrap">{msg.content}</p>
               </div>
+              {msg.role === 'assistant' && (
+                <div className="flex items-center gap-1 ml-1">
+                  <AudioPlayer text={msg.content} size="sm" />
+                </div>
+              )}
             </div>
           </div>
         ))}
-        
+
+        {/* Typing indicator */}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 dark:bg-dark-surface rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <svg className="animate-spin h-4 w-4 text-gray-600 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="text-sm text-gray-600 dark:text-gray-400">Analyzing...</span>
-              </div>
+          <div className="flex justify-start animate-fadeIn">
+            <div className="chat-bubble chat-bubble-assistant flex items-center gap-1.5 py-3">
+              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'rgb(var(--color-text-muted))', animationDelay: '0ms' }} />
+              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'rgb(var(--color-text-muted))', animationDelay: '150ms' }} />
+              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'rgb(var(--color-text-muted))', animationDelay: '300ms' }} />
             </div>
           </div>
         )}
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/10 border-t border-red-200 dark:border-red-800/30">
-          <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+      {/* Input */}
+      <div className="p-3 border-t" style={{ borderColor: 'rgb(var(--color-border))', background: 'rgb(var(--color-surface))' }}>
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+            placeholder="Ask about this document..."
+            className="input flex-1"
+            disabled={loading}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || loading}
+            className="btn btn-primary py-2.5 px-4"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+          </button>
         </div>
-      )}
-
-      {/* Input Form */}
-      <div className="p-4 border-t border-gray-200 dark:border-dark-border">
-        <form onSubmit={handleSubmit}>
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ask about payment terms, risks, obligations..."
-              className="flex-1 px-3 py-2 border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              disabled={loading || !query.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Send
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   )

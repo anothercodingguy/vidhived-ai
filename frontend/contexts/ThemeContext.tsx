@@ -9,34 +9,29 @@ interface ThemeContextType {
   toggleTheme: () => void
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+const ThemeContext = createContext<ThemeContextType>({ theme: 'light', toggleTheme: () => { } })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light')
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // Check for saved theme preference or default to light mode
-    const savedTheme = localStorage.getItem('theme') as Theme
-    if (savedTheme) {
-      setTheme(savedTheme)
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark')
-    }
+    setMounted(true)
+    const saved = localStorage.getItem('vidhived-theme') as Theme | null
+    const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    setTheme(saved || preferred)
   }, [])
 
   useEffect(() => {
-    // Apply theme to document
-    const root = window.document.documentElement
-    root.classList.remove('light', 'dark')
-    root.classList.add(theme)
-    
-    // Save theme preference
-    localStorage.setItem('theme', theme)
-  }, [theme])
+    if (!mounted) return
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    localStorage.setItem('vidhived-theme', theme)
+  }, [theme, mounted])
 
-  const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light')
-  }
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
+
+  // Prevent flash of wrong theme
+  if (!mounted) return <>{children}</>
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
@@ -46,9 +41,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext)
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider')
-  }
-  return context
+  return useContext(ThemeContext)
 }

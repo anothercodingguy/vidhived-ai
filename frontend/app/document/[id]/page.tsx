@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { getDocumentStatus, getPDFUrl, DocumentAnalysis } from '@/lib/api'
+import { getDocumentStatus, getPDFUrl, DocumentAnalysis, Clause } from '@/lib/api'
 import PdfViewer from '@/components/PDFViewer'
 import AnalysisSidebar from '@/components/AnalysisSidebar'
 import AskPanel from '@/components/AskPanel'
@@ -17,15 +17,15 @@ export default function DocumentPage() {
   const [pdfUrl, setPdfUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [highlightedClause, setHighlightedClause] = useState<string | null>(null)
-  const [showOverlays, setShowOverlays] = useState(true)
+  const [activeTab, setActiveTab] = useState<'analysis' | 'chat'>('analysis')
+  const [highlightedClauseId, setHighlightedClauseId] = useState<string | null>(null)
+  const scrollToClauseRef = useRef<((clauseId: string) => void) | null>(null)
 
   useEffect(() => {
-    if (documentId) {
-      loadDocument()
-      const interval = setInterval(checkStatus, 3000) // Poll every 3 seconds
-      return () => clearInterval(interval)
-    }
+    if (!documentId) return
+    loadDocument()
+    const interval = setInterval(checkStatus, 3000)
+    return () => clearInterval(interval)
   }, [documentId])
 
   const loadDocument = async () => {
@@ -33,32 +33,12 @@ export default function DocumentPage() {
       setLoading(true)
       setError('')
 
-      console.log('Loading document:', documentId)
+      const pdfResult = await getPDFUrl(documentId)
+      setPdfUrl(pdfResult.pdfUrl)
 
-      // Get PDF URL
-      try {
-        const pdfResult = await getPDFUrl(documentId)
-        setPdfUrl(pdfResult.pdfUrl)
-        console.log('PDF URL loaded:', pdfResult.pdfUrl)
-      } catch (pdfErr) {
-        console.error('PDF URL error:', pdfErr)
-        setError(`Failed to get PDF URL: ${pdfErr instanceof Error ? pdfErr.message : String(pdfErr)}`)
-        return
-      }
-
-      // Get analysis status
-      try {
-        await checkStatus()
-        console.log('Status check completed')
-      } catch (statusErr) {
-        console.error('Status check error:', statusErr)
-        setError(`Failed to get document status: ${statusErr instanceof Error ? statusErr.message : String(statusErr)}`)
-        return
-      }
-
-    } catch (err) {
-      setError(`Failed to load document: ${err instanceof Error ? err.message : String(err)}`)
-      console.error('Load document error:', err)
+      await checkStatus()
+    } catch (err: any) {
+      setError(err.message || 'Failed to load document')
     } finally {
       setLoading(false)
     }
@@ -66,157 +46,182 @@ export default function DocumentPage() {
 
   const checkStatus = async () => {
     try {
-      console.log('Checking status for:', documentId)
       const result = await getDocumentStatus(documentId)
-      console.log('Status result:', result)
       setAnalysis(result)
-      
       if (result.status === 'failed') {
         setError(result.message || 'Document processing failed')
       }
-    } catch (err) {
-      console.error('Status check error:', err)
-      throw err // Re-throw to be caught by loadDocument
+    } catch (err: any) {
+      if (!analysis) throw err
     }
   }
 
-  const handleClauseClick = (clauseId: string) => {
-    setHighlightedClause(clauseId)
-  }
+  const handleClauseHighlight = useCallback((clauseId: string) => {
+    setHighlightedClauseId(clauseId)
+    if (scrollToClauseRef.current) {
+      scrollToClauseRef.current(clauseId)
+    }
+  }, [])
 
-  const handleBackToUpload = () => {
-    router.push('/')
-  }
+  const handleAskAboutClause = useCallback((clause: Clause) => {
+    setActiveTab('chat')
+  }, [])
 
+  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-dark-text-secondary">Loading document...</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'rgb(var(--color-bg))' }}>
+        <div className="text-center animate-fadeIn">
+          <div className="relative w-16 h-16 mx-auto mb-6">
+            <div className="absolute inset-0 rounded-full border-2 animate-spin" style={{ borderColor: 'rgb(var(--color-border))', borderTopColor: 'rgb(var(--color-primary))' }} />
+          </div>
+          <p className="font-medium" style={{ color: 'rgb(var(--color-text))' }}>Loading document...</p>
+          <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-muted))' }}>This may take a moment</p>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  // Error state
+  if (error && !analysis) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
-        <div className="text-center">
-          <div className="text-red-600 dark:text-red-400 mb-4">
-            <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-lg font-medium text-gray-900 dark:text-dark-text">Error</p>
-            <p className="text-sm text-gray-600 dark:text-dark-text-secondary">{error}</p>
-          </div>
-          <button
-            onClick={handleBackToUpload}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
-          >
-            Back to Upload
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'rgb(var(--color-bg))' }}>
+        <div className="card p-8 max-w-md text-center animate-fadeIn">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-lg font-semibold mb-2" style={{ color: 'rgb(var(--color-text))' }}>Something went wrong</h2>
+          <p className="text-sm mb-6" style={{ color: 'rgb(var(--color-text-secondary))' }}>{error}</p>
+          <button onClick={() => router.push('/')} className="btn btn-primary">
+            ← Back to Upload
           </button>
         </div>
       </div>
     )
   }
 
+  const isProcessing = analysis?.status === 'processing'
+  const isCompleted = analysis?.status === 'completed'
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
+    <div className="min-h-screen flex flex-col" style={{ background: 'rgb(var(--color-bg))' }}>
       {/* Header */}
-      <div className="bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handleBackToUpload}
-              className="text-gray-600 dark:text-dark-text-secondary hover:text-gray-900 dark:hover:text-dark-text transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Vidhived.ai - Document Analysis
-            </h1>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {analysis?.status === 'processing' && (
-              <div className="flex items-center text-yellow-600 dark:text-yellow-400">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 dark:border-yellow-400 mr-2"></div>
-                <span className="text-sm">Processing...</span>
-              </div>
-            )}
-            {analysis?.status === 'completed' && (
-              <div className="flex items-center text-green-600 dark:text-green-400">
-                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span className="text-sm">Analysis Complete</span>
-              </div>
-            )}
-            {analysis?.status === 'failed' && (
-              <div className="flex items-center text-red-600 dark:text-red-400">
-                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <span className="text-sm">Processing Failed</span>
-              </div>
-            )}
-            <ThemeToggle />
+      <header className="flex items-center justify-between px-4 py-2.5 border-b" style={{ background: 'rgb(var(--color-surface))', borderColor: 'rgb(var(--color-border))' }}>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push('/')} className="btn-ghost btn-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-primary-500 flex items-center justify-center text-white font-bold text-xs">V</div>
+            <span className="font-semibold text-sm" style={{ color: 'rgb(var(--color-text))' }}>
+              {analysis?.filename || 'Document Analysis'}
+            </span>
           </div>
         </div>
-      </div>
+
+        <div className="flex items-center gap-3">
+          {/* Status indicator */}
+          {isProcessing && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
+              style={{ background: 'rgb(var(--color-risk-medium) / .1)', color: 'rgb(var(--color-risk-medium))' }}>
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'rgb(var(--color-risk-medium))' }} />
+              Analyzing...
+            </div>
+          )}
+          {isCompleted && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
+              style={{ background: 'rgb(var(--color-risk-low) / .1)', color: 'rgb(var(--color-risk-low))' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" /></svg>
+              Complete
+            </div>
+          )}
+          <ThemeToggle />
+        </div>
+      </header>
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-64px)]">
-        {/* PDF Viewer - Left Half */}
-        <div className="w-1/2 border-r border-gray-200 dark:border-dark-border">
+      <div className="flex-1 flex overflow-hidden">
+        {/* PDF Viewer — Left */}
+        <div className="w-1/2 border-r flex flex-col" style={{ borderColor: 'rgb(var(--color-border))' }}>
           {pdfUrl ? (
             <PdfViewer
               pdfUrl={pdfUrl}
               clauses={analysis?.analysis || []}
-              onClauseClick={setHighlightedClause}
-              showOverlays={showOverlays}
+              onClauseClick={setHighlightedClauseId}
+              highlightedClauseId={highlightedClauseId}
+              onScrollToClauseReady={(fn) => { scrollToClauseRef.current = fn }}
             />
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-gray-500 dark:text-dark-text-muted">Loading PDF...</p>
+            <div className="flex-1 flex items-center justify-center">
+              <p style={{ color: 'rgb(var(--color-text-muted))' }}>Loading PDF...</p>
             </div>
           )}
         </div>
 
-        {/* Analysis & Chat - Right Half */}
-        <div className="w-1/2 flex flex-col">
-          {/* Analysis Sidebar */}
-          <div className="flex-1 overflow-hidden">
-            {analysis?.status === 'completed' && analysis.analysis ? (
-              <AnalysisSidebar
-                clauses={analysis.analysis}
-                onClauseClick={handleClauseClick}
-                documentSummary={analysis.documentSummary}
-                fullAnalysis={analysis.fullAnalysis}
-              />
-            ) : analysis?.status === 'processing' ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600 dark:text-dark-text-secondary">
-                    {analysis.message || 'Analyzing document...'}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-gray-500 dark:text-dark-text-muted">Waiting for analysis...</p>
-              </div>
-            )}
+        {/* Right Panel — Analysis / Chat */}
+        <div className="w-1/2 flex flex-col overflow-hidden">
+          {/* Tab bar */}
+          <div className="flex border-b px-4" style={{ background: 'rgb(var(--color-surface))', borderColor: 'rgb(var(--color-border))' }}>
+            {(['analysis', 'chat'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="relative px-4 py-3 text-sm font-medium capitalize transition-colors"
+                style={{
+                  color: activeTab === tab ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))',
+                }}
+              >
+                {tab === 'analysis' ? '📊 Analysis' : '💬 Chat'}
+                {activeTab === tab && (
+                  <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full" style={{ background: 'rgb(var(--color-primary))' }} />
+                )}
+              </button>
+            ))}
           </div>
 
-          {/* Ask Panel */}
-          {analysis?.status === 'completed' && (
-            <AskPanel documentId={documentId} />
-          )}
+          {/* Tab content */}
+          <div className="flex-1 overflow-hidden">
+            {activeTab === 'analysis' ? (
+              isCompleted && analysis?.analysis ? (
+                <AnalysisSidebar
+                  clauses={analysis.analysis}
+                  onClauseClick={handleClauseHighlight}
+                  onAskAboutClause={handleAskAboutClause}
+                  documentSummary={analysis.documentSummary}
+                  fullAnalysis={analysis.fullAnalysis}
+                  highlightedClauseId={highlightedClauseId}
+                />
+              ) : isProcessing ? (
+                <div className="flex-1 flex items-center justify-center h-full p-8">
+                  <div className="text-center">
+                    <div className="relative w-12 h-12 mx-auto mb-4">
+                      <div className="absolute inset-0 rounded-full border-2 animate-spin" style={{ borderColor: 'rgb(var(--color-border))', borderTopColor: 'rgb(var(--color-primary))' }} />
+                    </div>
+                    <p className="font-medium text-sm mb-1" style={{ color: 'rgb(var(--color-text))' }}>
+                      {analysis?.message || 'Analyzing document...'}
+                    </p>
+                    <p className="text-xs" style={{ color: 'rgb(var(--color-text-muted))' }}>
+                      AI is extracting and scoring clauses
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center h-full">
+                  <p style={{ color: 'rgb(var(--color-text-muted))' }}>Waiting for analysis...</p>
+                </div>
+              )
+            ) : (
+              isCompleted ? (
+                <AskPanel documentId={documentId} />
+              ) : (
+                <div className="flex-1 flex items-center justify-center h-full">
+                  <p className="text-sm" style={{ color: 'rgb(var(--color-text-muted))' }}>
+                    Chat will be available after analysis completes
+                  </p>
+                </div>
+              )
+            )}
+          </div>
         </div>
       </div>
     </div>

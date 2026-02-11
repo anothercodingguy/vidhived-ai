@@ -1,187 +1,279 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { usePdfViewer } from '@/hooks/usePdfViewer';
-import PdfOverlay from './PdfOverlay';
-import type { Clause } from '@/lib/api';
+'use client'
 
-interface PdfViewerProps {
-  pdfUrl: string;
-  clauses: Clause[];
-  onClauseClick?: (clauseId: string) => void;
-  initialScale?: number;
-  showOverlays?: boolean;
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Clause } from '@/lib/api'
+
+interface PDFViewerProps {
+  pdfUrl: string
+  clauses: Clause[]
+  onClauseClick?: (clauseId: string) => void
+  highlightedClauseId?: string | null
+  onScrollToClauseReady?: (fn: (clauseId: string) => void) => void
 }
 
-export const PdfViewer: React.FC<PdfViewerProps> = ({
+export default function PdfViewer({
   pdfUrl,
   clauses,
   onClauseClick,
-  initialScale = 1.0,
-  showOverlays = true
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const {
-    pdf,
-    numPages,
-    pageData,
-    scale,
-    setScale,
-    loading,
-    error,
-    overlays,
-    highlightedClauseId,
-    setHighlightedClauseId,
-    searchTerm,
-    setSearchTerm,
-    searchResults,
-    searchIndex,
-    setSearchIndex,
-    addAnnotation,
-    annotations,
-  } = usePdfViewer({ pdfUrl, clauses, initialScale });
+  highlightedClauseId,
+  onScrollToClauseReady,
+}: PDFViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pages, setPages] = useState<HTMLCanvasElement[]>([])
+  const [pageCount, setPageCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [scale, setScale] = useState(1.2)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const pdfDocRef = useRef<any>(null)
+  const pageCanvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map())
+  const pageContainerRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+  const renderedPagesRef = useRef<Set<number>>(new Set())
 
-  // Resize observer for container
+  // Load PDF.js and document
   useEffect(() => {
-    if (!containerRef.current) return;
-    const handleResize = () => {
-      setContainerWidth(containerRef.current!.offsetWidth);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    if (!pdfUrl) return
+    loadPdf()
+  }, [pdfUrl])
 
-  // Render PDF pages
+  const loadPdf = async () => {
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const pdfjsLib = await import('pdfjs-dist')
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+
+      const pdf = await pdfjsLib.getDocument(pdfUrl).promise
+      pdfDocRef.current = pdf
+      setPageCount(pdf.numPages)
+      setIsLoading(false)
+    } catch (err: any) {
+      setError('Failed to load PDF')
+      setIsLoading(false)
+    }
+  }
+
+  // Render visible pages
   useEffect(() => {
-    if (!pdf || !pageData.length) return;
-    pageData.forEach(async (pd, idx) => {
-      const page = await pdf.getPage(pd.pageNumber);
-      const viewport = page.getViewport({ scale });
-      pd.page = page;
-      pd.viewport = viewport;
-      // Render canvas
-      if (pd.canvasRef.current) {
-        const canvas = pd.canvasRef.current;
-        const context = canvas.getContext('2d');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: context!, viewport } as any).promise;
+    if (!pdfDocRef.current || pageCount === 0) return
+
+    const renderPage = async (pageNum: number) => {
+      if (renderedPagesRef.current.has(pageNum)) return
+      renderedPagesRef.current.add(pageNum)
+
+      try {
+        const page = await pdfDocRef.current.getPage(pageNum)
+        const viewport = page.getViewport({ scale })
+        const canvas = pageCanvasRefs.current.get(pageNum)
+
+        if (!canvas) return
+
+        canvas.width = viewport.width
+        canvas.height = viewport.height
+
+        const container = pageContainerRefs.current.get(pageNum)
+        if (container) {
+          container.style.width = `${viewport.width}px`
+          container.style.height = `${viewport.height}px`
+        }
+
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          await page.render({ canvasContext: ctx, viewport }).promise
+        }
+      } catch (err) {
+        console.error(`Failed to render page ${pageNum}:`, err)
       }
-    });
-  }, [pdf, pageData, scale]);
+    }
 
-  // Overlay hover/click handlers
-  const handleOverlayHover = (clauseId: string | null) => {
-    setHighlightedClauseId(clauseId);
-  };
-  const handleOverlayClick = (clauseId: string) => {
-    setHighlightedClauseId(clauseId);
-    if (onClauseClick) onClauseClick(clauseId);
-  };
+    // Render all pages
+    for (let i = 1; i <= pageCount; i++) {
+      renderPage(i)
+    }
+  }, [pageCount, scale])
 
-  if (loading) return (
-    <div className="pdf-loading flex flex-col items-center justify-center h-full text-gray-600 dark:text-dark-text-secondary">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 dark:border-dark-text-secondary mb-4"></div>
-      <div>Loading PDF…</div>
-      <div className="text-sm mt-2">This may take up to 30 seconds for large files</div>
-    </div>
-  );
-  
-  if (error) return (
-    <div className="pdf-error flex flex-col items-center justify-center h-full text-red-600 dark:text-red-400 p-8">
-      <div className="text-center max-w-2xl w-full">
-        <div className="text-lg font-semibold mb-4">PDF Loading Error</div>
-        <div className="text-sm whitespace-pre-line mb-6">{error}</div>
-        <div className="flex gap-4 justify-center mb-6">
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm"
-          >
-            Retry Loading
-          </button>
-          <button 
-            onClick={() => console.log('PDF URL:', pdfUrl, 'Error details:', error)}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm"
-          >
-            Log Debug Info
-          </button>
-        </div>
-        <div className="text-xs text-gray-500 mt-4">
-          <div className="mb-2">Troubleshooting steps:</div>
-          <ul className="text-left list-disc list-inside space-y-1">
-            <li>Check browser console (F12) for detailed error messages</li>
-            <li>Try refreshing the page or clearing browser cache</li>
-            <li>Ensure stable internet connection</li>
-            <li>Try a different browser or incognito mode</li>
-            <li>Verify the PDF file is not corrupted</li>
-            <li>Check if ad blockers are interfering with PDF loading</li>
-          </ul>
+  // Re-render on scale change
+  useEffect(() => {
+    renderedPagesRef.current.clear()
+  }, [scale])
+
+  // Scroll tracking
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return
+    const scrollTop = containerRef.current.scrollTop
+    let currentP = 1
+
+    pageContainerRefs.current.forEach((el, num) => {
+      if (el.offsetTop <= scrollTop + 100) {
+        currentP = num
+      }
+    })
+
+    setCurrentPage(currentP)
+  }, [])
+
+  // Scroll-to-clause function
+  const scrollToClause = useCallback((clauseId: string) => {
+    const clause = clauses.find(c => c.id === clauseId)
+    if (!clause) return
+
+    const pageContainer = pageContainerRefs.current.get(clause.page_number)
+    if (pageContainer && containerRef.current) {
+      const pageRect = pageContainer.getBoundingClientRect()
+      const containerRect = containerRef.current.getBoundingClientRect()
+
+      // Calculate clause position on page
+      if (clause.bounding_box && clause.ocr_page_height) {
+        const scaleY = pageRect.height / clause.ocr_page_height
+        const y = clause.bounding_box.vertices[0].y * scaleY
+
+        containerRef.current.scrollTo({
+          top: pageContainer.offsetTop + y - 100,
+          behavior: 'smooth',
+        })
+        return
+      }
+
+      // Fallback: scroll to page
+      pageContainer.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [clauses])
+
+  // Expose scroll function to parent
+  useEffect(() => {
+    if (onScrollToClauseReady) {
+      onScrollToClauseReady(scrollToClause)
+    }
+  }, [scrollToClause, onScrollToClauseReady])
+
+  // Get clause overlays for a specific page
+  const getPageClauses = useCallback((pageNum: number) => {
+    return clauses.filter(c => c.page_number === pageNum && c.bounding_box)
+  }, [clauses])
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative w-10 h-10 mx-auto mb-3">
+            <div className="absolute inset-0 rounded-full border-2 animate-spin" style={{ borderColor: 'rgb(var(--color-border))', borderTopColor: 'rgb(var(--color-primary))' }} />
+          </div>
+          <p className="text-sm" style={{ color: 'rgb(var(--color-text-muted))' }}>Loading PDF...</p>
         </div>
       </div>
-    </div>
-  );
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-sm" style={{ color: 'rgb(var(--color-risk-high))' }}>⚠️ {error}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="pdf-viewer-container bg-white dark:bg-black" ref={containerRef}>
-      <div className="pdf-toolbar flex items-center gap-2 p-3 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border">
-        <button 
-          onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-          className="px-2 py-1 bg-gray-200 dark:bg-dark-card hover:bg-gray-300 dark:hover:bg-dark-border rounded text-gray-700 dark:text-dark-text-secondary"
-        >-</button>
-        <span className="text-sm text-gray-600 dark:text-dark-text-secondary min-w-[50px] text-center">{(scale * 100).toFixed(0)}%</span>
-        <button 
-          onClick={() => setScale(s => Math.min(3, s + 0.1))}
-          className="px-2 py-1 bg-gray-200 dark:bg-dark-card hover:bg-gray-300 dark:hover:bg-dark-border rounded text-gray-700 dark:text-dark-text-secondary"
-        >+</button>
-        <input
-          type="text"
-          placeholder="Search clauses…"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="pdf-search-box px-2 py-1 border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text rounded text-sm"
-        />
-        {searchResults.length > 0 && (
-          <span className="pdf-search-nav flex items-center gap-1">
-            <button 
-              onClick={() => setSearchIndex(i => Math.max(0, i - 1))}
-              className="px-1 py-1 bg-gray-200 dark:bg-dark-card hover:bg-gray-300 dark:hover:bg-dark-border rounded text-xs text-gray-700 dark:text-dark-text-secondary"
-            >&uarr;</button>
-            <span className="text-xs text-gray-600 dark:text-dark-text-secondary">{searchIndex + 1}/{searchResults.length}</span>
-            <button 
-              onClick={() => setSearchIndex(i => Math.min(searchResults.length - 1, i + 1))}
-              className="px-1 py-1 bg-gray-200 dark:bg-dark-card hover:bg-gray-300 dark:hover:bg-dark-border rounded text-xs text-gray-700 dark:text-dark-text-secondary"
-            >&darr;</button>
-          </span>
-        )}
-        <label className="flex items-center gap-1 text-sm text-gray-600 dark:text-dark-text-secondary ml-4">
-          <input type="checkbox" checked={showOverlays} readOnly className="rounded" /> Overlays
-        </label>
-      </div>
-      <div className="pdf-pages overflow-auto p-4 bg-gray-100 dark:bg-black">
-        {pageData.map((pd, idx) => (
-          <div
-            key={pd.pageNumber}
-            className="pdf-page-container"
-            style={{ position: 'relative', margin: '0 auto 24px', width: pd.viewport?.width, height: pd.viewport?.height }}
+    <div className="flex flex-col h-full">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-3 py-2 border-b" style={{ background: 'rgb(var(--color-surface))', borderColor: 'rgb(var(--color-border))' }}>
+        <div className="text-xs font-medium" style={{ color: 'rgb(var(--color-text-secondary))' }}>
+          Page {currentPage} / {pageCount}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setScale(s => Math.max(0.5, s - 0.2))}
+            className="btn-ghost btn-icon"
+            title="Zoom out"
           >
-            <canvas ref={pd.canvasRef} style={{ width: '100%', height: 'auto', display: 'block' }} />
-            {/* Overlay for this page */}
-            {overlays[pd.pageNumber] && (
-              <PdfOverlay
-                overlays={overlays[pd.pageNumber]}
-                scale={scale}
-                onHover={handleOverlayHover}
-                onClick={handleOverlayClick}
-                highlightedClauseId={highlightedClauseId}
-                annotations={annotations}
-                showOverlays={showOverlays}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          </button>
+          <span className="text-xs font-medium w-12 text-center" style={{ color: 'rgb(var(--color-text-secondary))' }}>
+            {Math.round(scale * 100)}%
+          </span>
+          <button
+            onClick={() => setScale(s => Math.min(3, s + 0.2))}
+            className="btn-ghost btn-icon"
+            title="Zoom in"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* PDF Pages */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-auto p-4"
+        style={{ background: 'rgb(var(--color-bg))' }}
+        onScroll={handleScroll}
+      >
+        <div className="flex flex-col items-center gap-4">
+          {Array.from({ length: pageCount }, (_, i) => i + 1).map(pageNum => (
+            <div
+              key={pageNum}
+              className="relative shadow-lg"
+              ref={(el) => { if (el) pageContainerRefs.current.set(pageNum, el) }}
+              style={{ background: '#fff', minHeight: 200 }}
+            >
+              <canvas
+                ref={(el) => { if (el) pageCanvasRefs.current.set(pageNum, el) }}
               />
-            )}
-          </div>
-        ))}
+
+              {/* Clause overlays */}
+              {getPageClauses(pageNum).map(clause => {
+                if (!clause.bounding_box || !clause.ocr_page_width || !clause.ocr_page_height) return null
+                const container = pageContainerRefs.current.get(pageNum)
+                if (!container) return null
+
+                const containerWidth = container.clientWidth || clause.ocr_page_width * scale
+                const containerHeight = container.clientHeight || clause.ocr_page_height * scale
+
+                const sx = containerWidth / clause.ocr_page_width
+                const sy = containerHeight / clause.ocr_page_height
+
+                const v = clause.bounding_box.vertices
+                const left = v[0].x * sx
+                const top = v[0].y * sy
+                const width = (v[1].x - v[0].x) * sx
+                const height = (v[3].y - v[0].y) * sy
+
+                const isHighlighted = highlightedClauseId === clause.id
+                const color = clause.category === 'Red' ? 'var(--color-risk-high)' : clause.category === 'Yellow' ? 'var(--color-risk-medium)' : 'var(--color-risk-low)'
+
+                return (
+                  <div
+                    key={clause.id}
+                    className="absolute cursor-pointer pdf-overlay-box"
+                    onClick={() => onClauseClick?.(clause.id)}
+                    style={{
+                      left: `${left}px`,
+                      top: `${top}px`,
+                      width: `${width}px`,
+                      height: `${height}px`,
+                      background: `rgb(${color} / ${isHighlighted ? '.2' : '.08'})`,
+                      border: `2px solid rgb(${color} / ${isHighlighted ? '.6' : '.25'})`,
+                      borderRadius: '4px',
+                      zIndex: isHighlighted ? 30 : 10,
+                      transition: 'all 0.2s ease',
+                    }}
+                    title={`${clause.type}: ${clause.explanation}`}
+                  >
+                    {isHighlighted && (
+                      <div className="absolute -top-6 left-0 text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap"
+                        style={{ background: `rgb(${color})`, color: '#fff', fontSize: '10px' }}>
+                        {clause.type} — {clause.category} Risk
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-  );
-};
-
-export default PdfViewer;
+  )
+}

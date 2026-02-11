@@ -13,3 +13,6 @@ PyMuPDF==1.25.1
 groq>=0.8.0
 httpx==0.27.0
 pydantic>=2.7.0
+
+# Voice (Sarvam AI)
+requests>=2.31.0

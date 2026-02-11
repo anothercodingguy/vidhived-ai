@@ -1,5 +1,5 @@
 services:
-  # Backend Flask API with GCP Integration
+  # Backend Flask API
   - type: web
     name: vidhived-backend
     env: python
@@ -15,17 +15,16 @@ services:
         value: 10000
       - key: LOG_LEVEL
         value: INFO
-            # IMPORTANT: Set these in Render Dashboard Environment Variables:
-      # GROQ_API_KEY=your-groq-api-key
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
       - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: vidhived-frontend
-          property: url
-      # GOOGLE_CLOUD_API_KEY=your-vertex-ai-api-key
-    healthCheckPath: /health
+        sync: false
+      - key: DATABASE_URL
+        sync: false
 
-  # Frontend Next.js App
+  # Frontend Next.js
   - type: web
     name: vidhived-frontend
     env: node
@@ -33,12 +32,7 @@ services:
     buildCommand: "cd frontend && npm install && npm run build"
     startCommand: "cd frontend && npm start"
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NEXT_TELEMETRY_DISABLED
-        value: "1"
+      - key: NODE_VERSION
+        value: 18.19.0
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: vidhived-backend
-          property: url
+        sync: false
