@@ -8,7 +8,7 @@ interface PDFViewerProps {
   clauses: Clause[]
   onClauseClick?: (clauseId: string) => void
   highlightedClauseId?: string | null
-  onScrollToClauseReady?: (fn: (clauseId: string) => void) => void
+  onGoToPageReady?: (fn: (page: number) => void) => void
 }
 
 export default function PdfViewer({
@@ -16,21 +16,20 @@ export default function PdfViewer({
   clauses,
   onClauseClick,
   highlightedClauseId,
-  onScrollToClauseReady,
+  onGoToPageReady,
 }: PDFViewerProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [pages, setPages] = useState<HTMLCanvasElement[]>([])
   const [pageCount, setPageCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
-  const [scale, setScale] = useState(1.2)
+  const [scale, setScale] = useState(1.5)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [pageInput, setPageInput] = useState('1')
   const pdfDocRef = useRef<any>(null)
-  const pageCanvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map())
-  const pageContainerRefs = useRef<Map<number, HTMLDivElement>>(new Map())
-  const renderedPagesRef = useRef<Set<number>>(new Set())
+  const renderTaskRef = useRef<number>(0)
 
-  // Load PDF.js and document
+  // Load PDF document
   useEffect(() => {
     if (!pdfUrl) return
     loadPdf()
@@ -47,6 +46,8 @@ export default function PdfViewer({
       const pdf = await pdfjsLib.getDocument(pdfUrl).promise
       pdfDocRef.current = pdf
       setPageCount(pdf.numPages)
+      setCurrentPage(1)
+      setPageInput('1')
       setIsLoading(false)
     } catch (err: any) {
       setError('Failed to load PDF')
@@ -54,103 +55,72 @@ export default function PdfViewer({
     }
   }
 
-  // Render visible pages
+  // Render current page
   useEffect(() => {
     if (!pdfDocRef.current || pageCount === 0) return
+    renderPage(currentPage)
+  }, [currentPage, scale, pageCount])
 
-    const renderPage = async (pageNum: number) => {
-      if (renderedPagesRef.current.has(pageNum)) return
-      renderedPagesRef.current.add(pageNum)
+  const renderPage = async (pageNum: number) => {
+    const taskId = ++renderTaskRef.current
 
-      try {
-        const page = await pdfDocRef.current.getPage(pageNum)
-        const viewport = page.getViewport({ scale })
-        const canvas = pageCanvasRefs.current.get(pageNum)
+    try {
+      const page = await pdfDocRef.current.getPage(pageNum)
+      if (taskId !== renderTaskRef.current) return // Cancelled
 
-        if (!canvas) return
+      const viewport = page.getViewport({ scale })
+      const canvas = canvasRef.current
+      if (!canvas) return
 
-        canvas.width = viewport.width
-        canvas.height = viewport.height
+      canvas.width = viewport.width
+      canvas.height = viewport.height
 
-        const container = pageContainerRefs.current.get(pageNum)
-        if (container) {
-          container.style.width = `${viewport.width}px`
-          container.style.height = `${viewport.height}px`
-        }
-
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          await page.render({ canvasContext: ctx, viewport }).promise
-        }
-      } catch (err) {
-        console.error(`Failed to render page ${pageNum}:`, err)
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        await page.render({ canvasContext: ctx, viewport }).promise
       }
+    } catch (err) {
+      console.error(`Failed to render page ${pageNum}:`, err)
     }
+  }
 
-    // Render all pages
-    for (let i = 1; i <= pageCount; i++) {
-      renderPage(i)
-    }
-  }, [pageCount, scale])
+  // Navigation
+  const goToPage = useCallback((page: number) => {
+    const p = Math.max(1, Math.min(pageCount, page))
+    setCurrentPage(p)
+    setPageInput(String(p))
+  }, [pageCount])
 
-  // Re-render on scale change
+  const prevPage = useCallback(() => goToPage(currentPage - 1), [currentPage, goToPage])
+  const nextPage = useCallback(() => goToPage(currentPage + 1), [currentPage, goToPage])
+
+  // Expose goToPage to parent
   useEffect(() => {
-    renderedPagesRef.current.clear()
-  }, [scale])
-
-  // Scroll tracking
-  const handleScroll = useCallback(() => {
-    if (!containerRef.current) return
-    const scrollTop = containerRef.current.scrollTop
-    let currentP = 1
-
-    pageContainerRefs.current.forEach((el, num) => {
-      if (el.offsetTop <= scrollTop + 100) {
-        currentP = num
-      }
-    })
-
-    setCurrentPage(currentP)
-  }, [])
-
-  // Scroll-to-clause function
-  const scrollToClause = useCallback((clauseId: string) => {
-    const clause = clauses.find(c => c.id === clauseId)
-    if (!clause) return
-
-    const pageContainer = pageContainerRefs.current.get(clause.page_number)
-    if (pageContainer && containerRef.current) {
-      const pageRect = pageContainer.getBoundingClientRect()
-      const containerRect = containerRef.current.getBoundingClientRect()
-
-      // Calculate clause position on page
-      if (clause.bounding_box && clause.ocr_page_height) {
-        const scaleY = pageRect.height / clause.ocr_page_height
-        const y = clause.bounding_box.vertices[0].y * scaleY
-
-        containerRef.current.scrollTo({
-          top: pageContainer.offsetTop + y - 100,
-          behavior: 'smooth',
-        })
-        return
-      }
-
-      // Fallback: scroll to page
-      pageContainer.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (onGoToPageReady) {
+      onGoToPageReady(goToPage)
     }
-  }, [clauses])
+  }, [goToPage, onGoToPageReady])
 
-  // Expose scroll function to parent
+  // Handle page input
+  const handlePageInputSubmit = () => {
+    const p = parseInt(pageInput, 10)
+    if (!isNaN(p)) goToPage(p)
+    else setPageInput(String(currentPage))
+  }
+
+  // Keyboard navigation
   useEffect(() => {
-    if (onScrollToClauseReady) {
-      onScrollToClauseReady(scrollToClause)
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prevPage() }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); nextPage() }
     }
-  }, [scrollToClause, onScrollToClauseReady])
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [prevPage, nextPage])
 
-  // Get clause overlays for a specific page
-  const getPageClauses = useCallback((pageNum: number) => {
-    return clauses.filter(c => c.page_number === pageNum && c.bounding_box)
-  }, [clauses])
+  // Get clause overlays for current page
+  const pageClauses = clauses.filter(c => c.page_number === currentPage && c.bounding_box)
 
   if (isLoading) {
     return (
@@ -169,7 +139,12 @@ export default function PdfViewer({
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-sm" style={{ color: 'rgb(var(--color-risk-high))' }}>⚠️ {error}</p>
+          <div className="w-10 h-10 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ background: 'rgb(var(--color-risk-high) / .1)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'rgb(var(--color-risk-high))' }}>
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <p className="text-sm" style={{ color: 'rgb(var(--color-risk-high))' }}>{error}</p>
         </div>
       </div>
     )
@@ -178,10 +153,50 @@ export default function PdfViewer({
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b" style={{ background: 'rgb(var(--color-surface))', borderColor: 'rgb(var(--color-border))' }}>
-        <div className="text-xs font-medium" style={{ color: 'rgb(var(--color-text-secondary))' }}>
-          Page {currentPage} / {pageCount}
+      <div className="glass-surface flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--glass-border)' }}>
+        {/* Pagination controls */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={prevPage}
+            disabled={currentPage <= 1}
+            className="btn-ghost btn-icon"
+            title="Previous page"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          <div className="flex items-center gap-1 text-xs">
+            <input
+              type="text"
+              value={pageInput}
+              onChange={(e) => setPageInput(e.target.value)}
+              onBlur={handlePageInputSubmit}
+              onKeyDown={(e) => e.key === 'Enter' && handlePageInputSubmit()}
+              className="w-10 text-center py-1 px-1 rounded text-xs font-medium"
+              style={{
+                background: 'rgb(var(--color-surface-hover))',
+                color: 'rgb(var(--color-text))',
+                border: '1px solid rgb(var(--color-border))',
+              }}
+            />
+            <span style={{ color: 'rgb(var(--color-text-muted))' }}>of {pageCount}</span>
+          </div>
+
+          <button
+            onClick={nextPage}
+            disabled={currentPage >= pageCount}
+            className="btn-ghost btn-icon"
+            title="Next page"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
         </div>
+
+        {/* Zoom controls */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => setScale(s => Math.max(0.5, s - 0.2))}
@@ -203,75 +218,63 @@ export default function PdfViewer({
         </div>
       </div>
 
-      {/* PDF Pages */}
+      {/* Single Page Canvas */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto p-4"
+        className="flex-1 overflow-auto p-4 flex items-start justify-center"
         style={{ background: 'rgb(var(--color-bg))' }}
-        onScroll={handleScroll}
       >
-        <div className="flex flex-col items-center gap-4">
-          {Array.from({ length: pageCount }, (_, i) => i + 1).map(pageNum => (
-            <div
-              key={pageNum}
-              className="relative shadow-lg"
-              ref={(el) => { if (el) pageContainerRefs.current.set(pageNum, el) }}
-              style={{ background: '#fff', minHeight: 200 }}
-            >
-              <canvas
-                ref={(el) => { if (el) pageCanvasRefs.current.set(pageNum, el) }}
-              />
+        <div className="relative" style={{ boxShadow: 'var(--shadow-lg)' }}>
+          <canvas ref={canvasRef} style={{ display: 'block' }} />
 
-              {/* Clause overlays */}
-              {getPageClauses(pageNum).map(clause => {
-                if (!clause.bounding_box || !clause.ocr_page_width || !clause.ocr_page_height) return null
-                const container = pageContainerRefs.current.get(pageNum)
-                if (!container) return null
+          {/* Clause overlays for current page */}
+          {pageClauses.map(clause => {
+            if (!clause.bounding_box || !clause.ocr_page_width || !clause.ocr_page_height) return null
+            const canvas = canvasRef.current
+            if (!canvas) return null
 
-                const containerWidth = container.clientWidth || clause.ocr_page_width * scale
-                const containerHeight = container.clientHeight || clause.ocr_page_height * scale
+            const containerWidth = canvas.width
+            const containerHeight = canvas.height
 
-                const sx = containerWidth / clause.ocr_page_width
-                const sy = containerHeight / clause.ocr_page_height
+            const sx = containerWidth / clause.ocr_page_width
+            const sy = containerHeight / clause.ocr_page_height
 
-                const v = clause.bounding_box.vertices
-                const left = v[0].x * sx
-                const top = v[0].y * sy
-                const width = (v[1].x - v[0].x) * sx
-                const height = (v[3].y - v[0].y) * sy
+            const v = clause.bounding_box.vertices
+            const left = v[0].x * sx
+            const top = v[0].y * sy
+            const width = (v[1].x - v[0].x) * sx
+            const height = (v[3].y - v[0].y) * sy
 
-                const isHighlighted = highlightedClauseId === clause.id
-                const color = clause.category === 'Red' ? 'var(--color-risk-high)' : clause.category === 'Yellow' ? 'var(--color-risk-medium)' : 'var(--color-risk-low)'
+            const isHighlighted = highlightedClauseId === clause.id
+            const color = clause.category === 'Red' ? 'var(--color-risk-high)' : clause.category === 'Yellow' ? 'var(--color-risk-medium)' : 'var(--color-risk-low)'
 
-                return (
-                  <div
-                    key={clause.id}
-                    className="absolute cursor-pointer pdf-overlay-box"
-                    onClick={() => onClauseClick?.(clause.id)}
-                    style={{
-                      left: `${left}px`,
-                      top: `${top}px`,
-                      width: `${width}px`,
-                      height: `${height}px`,
-                      background: `rgb(${color} / ${isHighlighted ? '.2' : '.08'})`,
-                      border: `2px solid rgb(${color} / ${isHighlighted ? '.6' : '.25'})`,
-                      borderRadius: '4px',
-                      zIndex: isHighlighted ? 30 : 10,
-                      transition: 'all 0.2s ease',
-                    }}
-                    title={`${clause.type}: ${clause.explanation}`}
-                  >
-                    {isHighlighted && (
-                      <div className="absolute -top-6 left-0 text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap"
-                        style={{ background: `rgb(${color})`, color: '#fff', fontSize: '10px' }}>
-                        {clause.type} — {clause.category} Risk
-                      </div>
-                    )}
+            return (
+              <div
+                key={clause.id}
+                className="absolute cursor-pointer pdf-overlay-box"
+                onClick={() => onClauseClick?.(clause.id)}
+                style={{
+                  left: `${left}px`,
+                  top: `${top}px`,
+                  width: `${width}px`,
+                  height: `${height}px`,
+                  background: `rgb(${color} / ${isHighlighted ? '.2' : '.08'})`,
+                  border: `2px solid rgb(${color} / ${isHighlighted ? '.6' : '.25'})`,
+                  borderRadius: '4px',
+                  zIndex: isHighlighted ? 30 : 10,
+                  transition: 'all 0.2s ease',
+                }}
+                title={`${clause.type}: ${clause.explanation}`}
+              >
+                {isHighlighted && (
+                  <div className="absolute -top-6 left-0 text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap"
+                    style={{ background: `rgb(${color})`, color: '#fff', fontSize: '10px' }}>
+                    {clause.type} — {clause.category === 'Red' ? 'High' : clause.category === 'Yellow' ? 'Medium' : 'Low'} Risk
                   </div>
-                )
-              })}
-            </div>
-          ))}
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

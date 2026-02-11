@@ -85,7 +85,7 @@ export default function AudioPlayer({ text, language = 'en-IN', size = 'sm' }: A
                         <rect x="14" y="4" width="4" height="16" rx="1" />
                     </svg>
                 ) : state === 'error' ? (
-                    <span className="text-xs">⚠️</span>
+                    <svg width={isSmall ? 14 : 16} height={isSmall ? 14 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                 ) : (
                     <svg width={isSmall ? 14 : 16} height={isSmall ? 14 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />

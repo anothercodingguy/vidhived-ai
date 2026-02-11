@@ -19,7 +19,7 @@ export default function DocumentPage() {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'analysis' | 'chat'>('analysis')
   const [highlightedClauseId, setHighlightedClauseId] = useState<string | null>(null)
-  const scrollToClauseRef = useRef<((clauseId: string) => void) | null>(null)
+  const goToPageRef = useRef<((page: number) => void) | null>(null)
 
   useEffect(() => {
     if (!documentId) return
@@ -32,10 +32,8 @@ export default function DocumentPage() {
     try {
       setLoading(true)
       setError('')
-
       const pdfResult = await getPDFUrl(documentId)
       setPdfUrl(pdfResult.pdfUrl)
-
       await checkStatus()
     } catch (err: any) {
       setError(err.message || 'Failed to load document')
@@ -58,10 +56,12 @@ export default function DocumentPage() {
 
   const handleClauseHighlight = useCallback((clauseId: string) => {
     setHighlightedClauseId(clauseId)
-    if (scrollToClauseRef.current) {
-      scrollToClauseRef.current(clauseId)
+    // Navigate PDF to the clause's page
+    const clause = analysis?.analysis?.find(c => c.id === clauseId)
+    if (clause && goToPageRef.current) {
+      goToPageRef.current(clause.page_number)
     }
-  }, [])
+  }, [analysis])
 
   const handleAskAboutClause = useCallback((clause: Clause) => {
     setActiveTab('chat')
@@ -86,12 +86,16 @@ export default function DocumentPage() {
   if (error && !analysis) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'rgb(var(--color-bg))' }}>
-        <div className="card p-8 max-w-md text-center animate-fadeIn">
-          <div className="text-4xl mb-4">⚠️</div>
+        <div className="glass p-8 max-w-md text-center animate-fadeIn">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'rgb(var(--color-risk-high) / .1)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'rgb(var(--color-risk-high))' }}>
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
           <h2 className="text-lg font-semibold mb-2" style={{ color: 'rgb(var(--color-text))' }}>Something went wrong</h2>
           <p className="text-sm mb-6" style={{ color: 'rgb(var(--color-text-secondary))' }}>{error}</p>
           <button onClick={() => router.push('/')} className="btn btn-primary">
-            ← Back to Upload
+            Back to Upload
           </button>
         </div>
       </div>
@@ -104,7 +108,7 @@ export default function DocumentPage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'rgb(var(--color-bg))' }}>
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2.5 border-b" style={{ background: 'rgb(var(--color-surface))', borderColor: 'rgb(var(--color-border))' }}>
+      <header className="glass-surface flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: 'var(--glass-border)' }}>
         <div className="flex items-center gap-3">
           <button onClick={() => router.push('/')} className="btn-ghost btn-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -112,7 +116,7 @@ export default function DocumentPage() {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-primary-500 flex items-center justify-center text-white font-bold text-xs">V</div>
+            <div className="w-6 h-6 rounded flex items-center justify-center text-white font-bold text-xs" style={{ background: 'rgb(var(--color-primary))' }}>V</div>
             <span className="font-semibold text-sm" style={{ color: 'rgb(var(--color-text))' }}>
               {analysis?.filename || 'Document Analysis'}
             </span>
@@ -120,12 +124,11 @@ export default function DocumentPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Status indicator */}
           {isProcessing && (
             <div className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
               style={{ background: 'rgb(var(--color-risk-medium) / .1)', color: 'rgb(var(--color-risk-medium))' }}>
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'rgb(var(--color-risk-medium))' }} />
-              Analyzing...
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'rgb(var(--color-risk-medium))' }} />
+              Analyzing
             </div>
           )}
           {isCompleted && (
@@ -142,14 +145,14 @@ export default function DocumentPage() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* PDF Viewer — Left */}
-        <div className="w-1/2 border-r flex flex-col" style={{ borderColor: 'rgb(var(--color-border))' }}>
+        <div className="w-1/2 border-r flex flex-col" style={{ borderColor: 'var(--glass-border)' }}>
           {pdfUrl ? (
             <PdfViewer
               pdfUrl={pdfUrl}
               clauses={analysis?.analysis || []}
               onClauseClick={setHighlightedClauseId}
               highlightedClauseId={highlightedClauseId}
-              onScrollToClauseReady={(fn) => { scrollToClauseRef.current = fn }}
+              onGoToPageReady={(fn) => { goToPageRef.current = fn }}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">
@@ -161,17 +164,22 @@ export default function DocumentPage() {
         {/* Right Panel — Analysis / Chat */}
         <div className="w-1/2 flex flex-col overflow-hidden">
           {/* Tab bar */}
-          <div className="flex border-b px-4" style={{ background: 'rgb(var(--color-surface))', borderColor: 'rgb(var(--color-border))' }}>
+          <div className="glass-surface flex border-b px-4" style={{ borderColor: 'var(--glass-border)' }}>
             {(['analysis', 'chat'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className="relative px-4 py-3 text-sm font-medium capitalize transition-colors"
+                className="relative px-4 py-3 text-sm font-medium capitalize transition-colors flex items-center gap-2"
                 style={{
                   color: activeTab === tab ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))',
                 }}
               >
-                {tab === 'analysis' ? '📊 Analysis' : '💬 Chat'}
+                {tab === 'analysis' ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                )}
+                {tab === 'analysis' ? 'Analysis' : 'Chat'}
                 {activeTab === tab && (
                   <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full" style={{ background: 'rgb(var(--color-primary))' }} />
                 )}

@@ -9,22 +9,38 @@ const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
 
 const FEATURES = [
   {
-    icon: '🔍',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+    ),
     title: 'Risk Scoring',
     desc: 'AI categorizes every clause as high, medium, or low risk.',
   },
   {
-    icon: '📋',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+    ),
     title: 'Clause Summaries',
     desc: 'Complex legalese translated into plain English.',
   },
   {
-    icon: '💬',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
     title: 'Document Q&A',
     desc: 'Ask questions about your contract and get instant answers.',
   },
   {
-    icon: '🔊',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+      </svg>
+    ),
     title: 'Voice Playback',
     desc: 'Listen to summaries and explanations in natural speech.',
   },
@@ -63,7 +79,6 @@ export default function HomePage() {
     if (f) handleFileSelect(f)
   }
 
-  // Drag events
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -86,7 +101,6 @@ export default function HomePage() {
     setUploadProgress(10)
 
     try {
-      // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress(p => Math.min(p + 15, 85))
       }, 400)
@@ -110,24 +124,25 @@ export default function HomePage() {
     <div className="min-h-screen" style={{ background: 'rgb(var(--color-bg))' }}>
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center text-white font-bold text-sm">V</div>
-          <span className="text-lg font-bold" style={{ color: 'rgb(var(--color-text))' }}>Vidhived.ai</span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'rgb(var(--color-primary))' }}>V</div>
+          <span className="text-lg font-bold tracking-tight" style={{ color: 'rgb(var(--color-text))' }}>Vidhived.ai</span>
         </div>
         <ThemeToggle />
       </nav>
 
       {/* Hero */}
-      <main className="max-w-6xl mx-auto px-6 pt-12 pb-24">
+      <main className="max-w-6xl mx-auto px-6 pt-16 pb-24">
         <div className="text-center mb-16 animate-fadeIn">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium mb-6"
-            style={{ background: 'rgb(var(--color-primary) / .08)', color: 'rgb(var(--color-primary))' }}>
-            ✨ AI-Powered Legal Intelligence
+            style={{ background: 'rgb(var(--color-primary) / .08)', color: 'rgb(var(--color-primary))', border: '1px solid rgb(var(--color-primary) / .12)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z" /></svg>
+            AI-Powered Legal Intelligence
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4" style={{ color: 'rgb(var(--color-text))' }}>
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-5" style={{ color: 'rgb(var(--color-text))', letterSpacing: '-0.02em' }}>
             Understand Any Legal<br />Document in Minutes
           </h1>
-          <p className="text-lg max-w-2xl mx-auto" style={{ color: 'rgb(var(--color-text-secondary))' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'rgb(var(--color-text-secondary))' }}>
             Upload a contract, NDA, or agreement. Get instant AI analysis with risk scoring,
             clause summaries, and interactive Q&A.
           </p>
@@ -135,7 +150,7 @@ export default function HomePage() {
 
         {/* Upload Card */}
         <div className="max-w-2xl mx-auto mb-20 animate-fadeIn" style={{ animationDelay: '.1s' }}>
-          <div className="card p-8">
+          <div className="glass p-8" style={{ boxShadow: 'var(--shadow-lg), var(--shadow-glow)' }}>
             <div
               className={`dropzone ${dragActive ? 'dropzone-active' : ''}`}
               onDragEnter={handleDrag}
@@ -154,14 +169,16 @@ export default function HomePage() {
 
               {file ? (
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl"
-                    style={{ background: 'rgb(var(--color-primary) / .1)' }}>
-                    📄
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center"
+                    style={{ background: 'rgb(var(--color-primary) / .1)', border: '1px solid rgb(var(--color-primary) / .15)' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'rgb(var(--color-primary))' }}>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                    </svg>
                   </div>
                   <div>
                     <p className="font-semibold" style={{ color: 'rgb(var(--color-text))' }}>{file.name}</p>
                     <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-muted))' }}>
-                      {(file.size / 1024 / 1024).toFixed(2)} MB • Click or drag to replace
+                      {(file.size / 1024 / 1024).toFixed(2)} MB · Click or drag to replace
                     </p>
                   </div>
                 </div>
@@ -241,8 +258,8 @@ export default function HomePage() {
         {/* Features */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto animate-fadeIn" style={{ animationDelay: '.2s' }}>
           {FEATURES.map((f) => (
-            <div key={f.title} className="card p-5">
-              <div className="text-2xl mb-3">{f.icon}</div>
+            <div key={f.title} className="glass p-5 group">
+              <div className="mb-3" style={{ color: 'rgb(var(--color-primary))' }}>{f.icon}</div>
               <h3 className="font-semibold text-sm mb-1" style={{ color: 'rgb(var(--color-text))' }}>{f.title}</h3>
               <p className="text-xs leading-relaxed" style={{ color: 'rgb(var(--color-text-secondary))' }}>{f.desc}</p>
             </div>
@@ -251,7 +268,7 @@ export default function HomePage() {
 
         {/* Footer */}
         <div className="text-center mt-16 text-xs" style={{ color: 'rgb(var(--color-text-muted))' }}>
-          Powered by Groq AI & Sarvam AI • Built for legal professionals
+          Powered by Groq AI & Sarvam AI · Built for legal professionals
         </div>
       </main>
     </div>

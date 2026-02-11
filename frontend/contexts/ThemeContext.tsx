@@ -9,28 +9,29 @@ interface ThemeContextType {
   toggleTheme: () => void
 }
 
-const ThemeContext = createContext<ThemeContextType>({ theme: 'light', toggleTheme: () => { } })
+const ThemeContext = createContext<ThemeContextType>({ theme: 'dark', toggleTheme: () => { } })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light')
+  const [theme, setTheme] = useState<Theme>('dark')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     const saved = localStorage.getItem('vidhived-theme') as Theme | null
-    const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-    setTheme(saved || preferred)
+    if (saved) setTheme(saved)
+    // Default is dark — no system preference detection needed
   }, [])
 
   useEffect(() => {
     if (!mounted) return
-    document.documentElement.classList.toggle('dark', theme === 'dark')
+    const root = document.documentElement
+    root.classList.remove('light', 'dark')
+    root.classList.add(theme)
     localStorage.setItem('vidhived-theme', theme)
   }, [theme, mounted])
 
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
 
-  // Prevent flash of wrong theme
   if (!mounted) return <>{children}</>
 
   return (
