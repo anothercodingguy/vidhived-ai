@@ -128,7 +128,18 @@ export default function HomePage() {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'rgb(var(--color-primary))' }}>V</div>
           <span className="text-lg font-bold tracking-tight" style={{ color: 'rgb(var(--color-text))' }}>Vidhived.ai</span>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/notebooks')}
+            className="btn btn-ghost text-sm flex items-center gap-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </svg>
+            My Notebooks
+          </button>
+          <ThemeToggle />
+        </div>
       </nav>
 
       {/* Hero */}

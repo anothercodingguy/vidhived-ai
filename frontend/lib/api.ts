@@ -127,3 +127,121 @@ export async function getTTSStatus(): Promise<TTSStatus> {
     return { available: false, provider: null }
   }
 }
+
+// ── Notebook Types ──────────────────────────────────────────────────
+
+export interface Notebook {
+  id: string
+  title: string
+  description: string
+  createdAt: string
+  updatedAt: string
+  noteCount: number
+  notes?: NoteItem[]
+}
+
+export interface NoteItem {
+  id: string
+  title: string
+  content: string
+  noteType: 'text' | 'pdf'
+  sourceFilename: string
+  wordCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NotebookAskResult {
+  answer: string
+  sources: { id: string; title: string }[]
+  hasAI: boolean
+  notebookId: string
+}
+
+// ── Notebook API Functions ──────────────────────────────────────────
+
+export async function createNotebook(title: string, description: string = ''): Promise<Notebook> {
+  const response = await fetch(`${API_URL}/notebooks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to create notebook')
+  return data
+}
+
+export async function listNotebooks(): Promise<Notebook[]> {
+  const response = await fetch(`${API_URL}/notebooks`)
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to list notebooks')
+  return data
+}
+
+export async function getNotebook(notebookId: string): Promise<Notebook> {
+  const response = await fetch(`${API_URL}/notebook/${notebookId}`)
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to get notebook')
+  return data
+}
+
+export async function deleteNotebook(notebookId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/notebook/${notebookId}`, { method: 'DELETE' })
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || 'Failed to delete notebook')
+  }
+}
+
+export async function addNote(notebookId: string, title: string, content: string): Promise<NoteItem> {
+  const response = await fetch(`${API_URL}/notebook/${notebookId}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, content }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to add note')
+  return data
+}
+
+export async function uploadNoteFile(notebookId: string, file: File): Promise<NoteItem> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(`${API_URL}/notebook/${notebookId}/notes/upload`, {
+    method: 'POST',
+    body: formData,
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to upload PDF')
+  return data
+}
+
+export async function updateNote(notebookId: string, noteId: string, updates: { title?: string; content?: string }): Promise<NoteItem> {
+  const response = await fetch(`${API_URL}/notebook/${notebookId}/note/${noteId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to update note')
+  return data
+}
+
+export async function deleteNote(notebookId: string, noteId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/notebook/${notebookId}/note/${noteId}`, { method: 'DELETE' })
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || 'Failed to delete note')
+  }
+}
+
+export async function askNotebook(notebookId: string, query: string): Promise<NotebookAskResult> {
+  const response = await fetch(`${API_URL}/notebook/${notebookId}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to get answer')
+  return data
+}

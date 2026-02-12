@@ -39,3 +39,44 @@ class AnalysisResult(db.Model):
     full_text = db.Column(db.Text)
     summary_text = db.Column(db.Text)
     clauses_json = db.Column(db.Text)  # JSON serialized list of clauses
+
+
+@dataclass
+class Notebook(db.Model):
+    id: str
+    title: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
+
+    id = db.Column(db.String(36), primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    notes = db.relationship('Note', backref='notebook', lazy='dynamic', cascade='all, delete-orphan')
+
+
+@dataclass
+class Note(db.Model):
+    id: str
+    notebook_id: str
+    title: str
+    content: str
+    note_type: str
+    source_filename: str
+    word_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    id = db.Column(db.String(36), primary_key=True)
+    notebook_id = db.Column(db.String(36), db.ForeignKey('notebook.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False, default='Untitled')
+    content = db.Column(db.Text, default='')
+    note_type = db.Column(db.String(20), default='text')  # 'text' or 'pdf'
+    source_filename = db.Column(db.String(255), default='')
+    word_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
