@@ -64,5 +64,5 @@ def tts_status():
     available = get_sarvam_api_key() is not None
     return jsonify({
         "available": available,
-        "provider": "Sarvam AI (Bulbul v2)" if available else None,
+        "provider": "Sarvam AI (Bulbul v3)" if available else None,
     })
