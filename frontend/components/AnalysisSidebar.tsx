@@ -52,9 +52,9 @@ export default function AnalysisSidebar({
       <div className="flex-1 overflow-y-auto p-4 space-y-3" ref={clauseListRef}>
 
         {/* Risk Overview */}
-        <div className="glass p-4 animate-fadeIn">
+        <div className="bg-white dark:bg-[#0f0f11] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm animate-fadeIn">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(var(--color-text-muted))' }}>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Risk Overview
             </h3>
             <div className="text-sm font-bold" style={{ color: `rgb(${riskColor})` }}>
@@ -91,13 +91,13 @@ export default function AnalysisSidebar({
 
         {/* Executive Summary */}
         {documentSummary && (
-          <div className="glass animate-fadeIn" style={{ animationDelay: '.05s' }}>
+          <div className="bg-white dark:bg-[#0f0f11] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm animate-fadeIn overflow-hidden" style={{ animationDelay: '.05s' }}>
             <button
               onClick={() => setExpandedSection(s => s === 'summary' ? null : 'summary')}
-              className="w-full flex items-center justify-between p-4"
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
             >
-              <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'rgb(var(--color-text))' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'rgb(var(--color-primary))' }}>
+              <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-500">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
                 </svg>
                 Executive Summary
@@ -108,13 +108,13 @@ export default function AnalysisSidebar({
               </svg>
             </button>
             {expandedSection === 'summary' && (
-              <div className="px-4 pb-4 border-t" style={{ borderColor: 'var(--glass-border)' }}>
-                <div className="pt-3 text-sm leading-relaxed whitespace-pre-line" style={{ color: 'rgb(var(--color-text-secondary))' }}>
+              <div className="px-4 pb-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20">
+                <div className="pt-3 text-sm leading-relaxed whitespace-pre-line text-slate-600 dark:text-slate-300">
                   {documentSummary}
                 </div>
                 <div className="mt-3 flex items-center gap-2">
                   <AudioPlayer text={documentSummary} size="sm" />
-                  <span className="text-xs" style={{ color: 'rgb(var(--color-text-muted))' }}>Listen</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Listen</span>
                 </div>
               </div>
             )}
@@ -124,11 +124,11 @@ export default function AnalysisSidebar({
         {/* Clause List */}
         <div className="animate-fadeIn" style={{ animationDelay: '.1s' }}>
           <div className="flex items-center justify-between mb-2 px-1">
-            <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(var(--color-text-muted))' }}>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Clauses ({filtered.length})
             </h3>
             {filter !== 'all' && (
-              <button onClick={() => setFilter('all')} className="text-xs font-medium" style={{ color: 'rgb(var(--color-primary))' }}>
+              <button onClick={() => setFilter('all')} className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700">
                 Show all
               </button>
             )}
@@ -178,42 +178,39 @@ function ClauseCard({ clause, isHighlighted, onClick, onAsk, index }: ClauseCard
   return (
     <div
       id={`sidebar-${clause.id}`}
-      className={`glass cursor-pointer transition-all ${isHighlighted ? 'glass-active' : ''}`}
+      className={`bg-white dark:bg-[#0f0f11] border rounded-2xl cursor-pointer transition-all hover:shadow-md ${isHighlighted ? 'border-blue-500 shadow-md ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
       style={{ animationDelay: `${index * 0.02}s` }}
     >
       {/* Header */}
-      <div className="p-3 flex items-start gap-3" onClick={onClick}>
+      <div className="p-4 flex items-start gap-3" onClick={onClick}>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className={`badge ${badgeClass}`}>
               <span className={`dot ${dotClass}`} />
               {riskLabel}
             </span>
-            <span className="text-xs font-medium px-2 py-0.5 rounded" style={{
-              background: 'rgb(var(--color-surface-hover))',
-              color: 'rgb(var(--color-text-secondary))',
-            }}>
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
               {clause.type}
             </span>
-            <span className="text-xs" style={{ color: 'rgb(var(--color-text-muted))' }}>
+            <span className="text-xs text-slate-500 dark:text-slate-400 ml-auto">
               p.{clause.page_number}
             </span>
           </div>
 
           {clause.summary && (
-            <p className="text-sm font-medium mb-0.5" style={{ color: 'rgb(var(--color-text))' }}>
+            <p className="text-sm font-medium mb-1 text-slate-800 dark:text-slate-200 leading-snug">
               {clause.summary}
             </p>
           )}
 
-          <p className="text-xs" style={{ color: 'rgb(var(--color-text-secondary))' }}>
+          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
             {clause.explanation}
           </p>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="px-3 pb-2 flex items-center gap-1 border-t" style={{ borderColor: 'var(--glass-border)' }}>
+      <div className="px-4 py-2 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#09090b]/50 rounded-b-2xl">
         <button
           onClick={(e) => { e.stopPropagation(); setExpanded(!expanded) }}
           className="btn-ghost py-1 px-2 text-xs"
@@ -236,15 +233,12 @@ function ClauseCard({ clause, isHighlighted, onClick, onAsk, index }: ClauseCard
 
       {/* Expanded content */}
       {expanded && (
-        <div className="px-3 pb-3 border-t animate-fadeIn" style={{ borderColor: 'var(--glass-border)' }}>
-          <div className="pt-2 space-y-2">
+        <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-black/10 animate-fadeIn rounded-b-2xl">
+          <div className="pt-3 space-y-3">
             {/* Full text */}
             <div>
-              <p className="text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-text-muted))' }}>Original Text</p>
-              <p className="text-xs leading-relaxed p-2 rounded" style={{
-                background: 'rgb(var(--color-surface-hover))',
-                color: 'rgb(var(--color-text-secondary))',
-              }}>
+              <p className="text-xs font-semibold mb-1.5 text-slate-500 dark:text-slate-400">Original Text</p>
+              <p className="text-xs leading-relaxed p-3 rounded-xl bg-slate-100 dark:bg-[#151518] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
                 {clause.text.slice(0, 500)}{clause.text.length > 500 ? '...' : ''}
               </p>
             </div>
@@ -252,14 +246,11 @@ function ClauseCard({ clause, isHighlighted, onClick, onAsk, index }: ClauseCard
             {/* Entities */}
             {clause.entities && clause.entities.length > 0 && (
               <div>
-                <p className="text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-text-muted))' }}>Entities</p>
-                <div className="flex flex-wrap gap-1">
+                <p className="text-xs font-semibold mb-1.5 text-slate-500 dark:text-slate-400">Entities</p>
+                <div className="flex flex-wrap gap-1.5">
                   {clause.entities.map((e, i) => (
-                    <span key={i} className="text-xs px-2 py-0.5 rounded" style={{
-                      background: 'rgb(var(--color-primary) / .08)',
-                      color: 'rgb(var(--color-primary))',
-                    }}>
-                      {e.text} ({e.type})
+                    <span key={i} className="text-xs px-2 py-1 rounded bg-blue-50/50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20">
+                      {e.text} <span className="opacity-60 text-[10px] uppercase ml-1">({e.type})</span>
                     </span>
                   ))}
                 </div>
@@ -269,26 +260,28 @@ function ClauseCard({ clause, isHighlighted, onClick, onAsk, index }: ClauseCard
             {/* Legal terms */}
             {clause.legal_terms && clause.legal_terms.length > 0 && (
               <div>
-                <p className="text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-text-muted))' }}>Legal Terms</p>
-                {clause.legal_terms.map((lt, i) => (
-                  <div key={i} className="text-xs mb-1">
-                    <span className="font-medium" style={{ color: 'rgb(var(--color-text))' }}>{lt.term}:</span>{' '}
-                    <span style={{ color: 'rgb(var(--color-text-secondary))' }}>{lt.definition}</span>
-                  </div>
-                ))}
+                <p className="text-xs font-semibold mb-1.5 text-slate-500 dark:text-slate-400">Legal Terms</p>
+                <div className="space-y-1.5">
+                  {clause.legal_terms.map((lt, i) => (
+                    <div key={i} className="text-xs leading-relaxed">
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{lt.term}:</span>{' '}
+                      <span className="text-slate-600 dark:text-slate-400">{lt.definition}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Risk Score */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'rgb(var(--color-text-muted))' }}>Risk score:</span>
-              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgb(var(--color-border))' }}>
-                <div className="h-full rounded-full" style={{
+            <div className="flex items-center gap-3 pt-1">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Risk score:</span>
+              <div className="flex-1 h-2 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800">
+                <div className="h-full rounded-full transition-all duration-500" style={{
                   width: `${clause.score * 100}%`,
-                  background: clause.category === 'Red' ? 'rgb(var(--color-risk-high))' : clause.category === 'Yellow' ? 'rgb(var(--color-risk-medium))' : 'rgb(var(--color-risk-low))',
+                  background: clause.category === 'Red' ? '#ef4444' : clause.category === 'Yellow' ? '#f59e0b' : '#22c55e',
                 }} />
               </div>
-              <span className="text-xs font-medium" style={{ color: 'rgb(var(--color-text-secondary))' }}>
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 {(clause.score * 100).toFixed(0)}%
               </span>
             </div>
