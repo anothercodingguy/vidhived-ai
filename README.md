@@ -2,6 +2,8 @@
 
 A full-stack, AI-powered platform for analyzing legal documents. Upload a PDF contract and instantly get risk assessments, clause summaries, and the ability to ask questions about the text using Groq's low-latency LLMs.
 
+**🔗 [Live Demo](https://vidhived-frontend.onrender.com/)**
+
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Groq](https://img.shields.io/badge/Powered%20by-Groq-orange)](https://groq.com/)
