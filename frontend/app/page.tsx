@@ -158,13 +158,13 @@ export default function HomePage() {
           </div>
 
           {/* Abstract Graphic Area containing the Upload logic */}
-          <div className="relative w-full h-[600px] mt-12 perspective-1000 flex justify-center">
+          <div className="relative w-full h-[400px] md:h-[600px] lg:h-[700px] mt-8 md:mt-12 perspective-1000 flex justify-center items-center overflow-visible">
             
             {/* Glow effect behind hub */}
-            <div className="absolute top-[30%] left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-blue-500/20 blur-[100px] rounded-full pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] md:w-[400px] h-[250px] md:h-[400px] bg-blue-500/20 blur-[60px] md:blur-[100px] rounded-full pointer-events-none" />
 
-            {/* The Graphic Container (rotated isometrically) */}
-            <div className="relative w-full max-w-4xl h-full" style={{ transform: 'rotateX(55deg) rotateZ(-40deg)', transformStyle: 'preserve-3d' }}>
+            {/* The Graphic Container (rotated isometrically and responsive scaled) */}
+            <div className="relative w-full h-full max-w-4xl scale-[0.6] sm:scale-75 md:scale-100 lg:scale-110 xl:scale-125 transform-gpu origin-center" style={{ transform: 'rotateX(55deg) rotateZ(-40deg)', transformStyle: 'preserve-3d' }}>
               
               {/* Base Grid / Connecting Lines */}
               <svg className="absolute inset-0 w-full h-full overflow-visible" style={{ transform: 'translateZ(-1px)' }}>
@@ -188,7 +188,7 @@ export default function HomePage() {
               </div>
 
               {/* App Nodes */}
-              <div className="absolute top-[450px] left-[50px] w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center transform-gpu hover:-translate-y-2 transition-transform" style={{ transform: 'translateZ(30px)' }}>
+              <div className="absolute top-[450px] left-[50px] w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center transform-gpu animate-[float_6s_ease-in-out_infinite]" style={{ transform: 'translateZ(30px)' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-indigo-500">
                    <path d="M7 20h10" />
                    <path d="M12 2v18" />
@@ -198,11 +198,11 @@ export default function HomePage() {
                 </svg>
               </div>
 
-              <div className="absolute top-[350px] left-[150px] w-14 h-14 bg-white rounded-xl shadow-lg flex items-center justify-center" style={{ transform: 'translateZ(40px)' }}>
+              <div className="absolute top-[350px] left-[150px] w-14 h-14 bg-white rounded-xl shadow-lg flex items-center justify-center transform-gpu animate-[float_5s_ease-in-out_infinite_1s]" style={{ transform: 'translateZ(40px)' }}>
                  <div className="text-red-500 font-bold text-xl border-2 border-red-500 rounded px-1">PDF</div>
               </div>
 
-              <div className="absolute top-[280px] left-[250px] w-12 h-12 bg-white rounded-lg shadow-md flex items-center justify-center" style={{ transform: 'translateZ(20px)' }}>
+              <div className="absolute top-[280px] left-[250px] w-12 h-12 bg-white rounded-lg shadow-md flex items-center justify-center transform-gpu animate-[float_4s_ease-in-out_infinite_0.5s]" style={{ transform: 'translateZ(20px)' }}>
                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-emerald-500">
                    <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
                    <line x1="12" y1="22" x2="12" y2="15.5" />
@@ -212,20 +212,20 @@ export default function HomePage() {
                  </svg>
               </div>
 
-              <div className="absolute top-[480px] left-[280px] w-14 h-14 bg-white rounded-xl shadow-lg flex items-center justify-center" style={{ transform: 'translateZ(35px)' }}>
+              <div className="absolute top-[480px] left-[280px] w-14 h-14 bg-white rounded-xl shadow-lg flex items-center justify-center transform-gpu animate-[float_6s_ease-in-out_infinite_1.5s]" style={{ transform: 'translateZ(35px)' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 text-blue-500">
                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
 
-              <div className="absolute top-[600px] left-[200px] w-14 h-14 bg-white rounded-xl shadow-lg flex items-center justify-center" style={{ transform: 'translateZ(25px)' }}>
+              <div className="absolute top-[600px] left-[200px] w-14 h-14 bg-white rounded-xl shadow-lg flex items-center justify-center transform-gpu animate-[float_5s_ease-in-out_infinite_2s]" style={{ transform: 'translateZ(25px)' }}>
                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 text-amber-500">
                     <path d="M12 2v20" />
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                  </svg>
               </div>
 
-              <div className="absolute top-[450px] left-[450px] w-12 h-12 bg-white rounded-lg shadow-md flex items-center justify-center" style={{ transform: 'translateZ(10px)' }}>
+              <div className="absolute top-[450px] left-[450px] w-12 h-12 bg-white rounded-lg shadow-md flex items-center justify-center transform-gpu animate-[float_4.5s_ease-in-out_infinite_0.8s]" style={{ transform: 'translateZ(10px)' }}>
                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-slate-500">
                     <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
                  </svg>
@@ -331,6 +331,14 @@ export default function HomePage() {
             <style dangerouslySetInnerHTML={{__html: `
               .perspective-1000 {
                 perspective: 1000px;
+              }
+              @keyframes float {
+                0%, 100% {
+                  transform: translateY(0) translateZ(var(--tw-translate-z, 0));
+                }
+                50% {
+                  transform: translateY(-20px) translateZ(var(--tw-translate-z, 0));
+                }
               }
             `}} />
           </div>
