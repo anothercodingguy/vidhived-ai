@@ -8,6 +8,7 @@ from .models import db
 from .routes import bp
 from .voice_routes import voice_bp
 from .notebook_routes import notebook_bp
+from .export_routes import bp as export_bp
 
 
 def create_app():
@@ -39,6 +40,7 @@ def create_app():
     app.register_blueprint(bp)
     app.register_blueprint(voice_bp)
     app.register_blueprint(notebook_bp)
+    app.register_blueprint(export_bp)
 
     # Create/migrate tables safely
     with app.app_context():

@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - FLASK_ENV=development
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - SARVAM_API_KEY=${SARVAM_API_KEY}
+      - CORS_ORIGINS=http://localhost:3000
+      - DATABASE_URL=sqlite:///app.db
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/instance:/app/instance
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5001
+    depends_on:
+      - backend

@@ -2,6 +2,7 @@ import os
 import json
 import time
 import logging
+import concurrent.futures
 import fitz  # PyMuPDF
 from groq import Groq
 from typing import List, Dict, Tuple, Optional
@@ -207,12 +208,25 @@ def process_document(file_path: str) -> Tuple[str, List[Dict], str, int]:
             clauses.append(_build_clause_dict(i + 1, content, dummy))
         return full_text, clauses, "GROQ_API_KEY missing. AI analysis skipped.", page_count
 
-    # Analyze all clauses
-    clauses = []
-    for i, content in enumerate(structured_content):
+    # Analyze all clauses concurrently
+    clauses = [None] * len(structured_content)
+
+    def _worker(i, content):
         logger.info(f"Analyzing clause {i + 1}/{len(structured_content)}...")
         analysis = analyze_clause_worker(content["text"], client)
-        clauses.append(_build_clause_dict(i + 1, content, analysis))
+        return _build_clause_dict(i + 1, content, analysis)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(_worker, i, content): i for i, content in enumerate(structured_content)}
+        for future in concurrent.futures.as_completed(futures):
+            i = futures[future]
+            try:
+                result = future.result()
+                clauses[i] = result
+            except Exception as e:
+                logger.error(f"Error processing clause {i + 1}: {e}")
+                dummy = _fallback_clause_result(str(e))
+                clauses[i] = _build_clause_dict(i + 1, structured_content[i], dummy)
 
     # Generate overall summary
     summary_text = _generate_summary(client, full_text)
