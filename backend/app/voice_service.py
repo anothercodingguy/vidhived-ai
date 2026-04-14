@@ -18,14 +18,14 @@ def get_sarvam_api_key() -> Optional[str]:
     return key
 
 
-def text_to_speech(text: str, language: str = "en-IN", speaker: str = "meera") -> Optional[str]:
+def text_to_speech(text: str, language: str = "en-IN", speaker: str = "kavya") -> Optional[str]:
     """
     Convert text to speech using Sarvam AI Bulbul v3.
 
     Args:
         text: Text to convert (max 2500 chars per chunk)
         language: BCP-47 language code (en-IN, hi-IN, etc.)
-        speaker: Voice name (default: meera)
+        speaker: Voice name (default: kavya)
 
     Returns:
         Base64-encoded audio string (wav), or None on failure
