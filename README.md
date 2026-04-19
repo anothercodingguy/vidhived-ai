@@ -91,3 +91,53 @@ We provide a `render.yaml` for one-click deployment on Render.com.
 ## License & Support
 
 MIT Licensed. Open an issue on GitHub if you need help or run into bugs.
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Browser (Next.js 14)                  │
+│  PDF.js Viewer ──► Clause Highlights ──► Chat Interface      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ HTTP/REST
+┌─────────────────────────▼───────────────────────────────────┐
+│                   Flask API (Python 3.11)                    │
+│                                                              │
+│  POST /upload ──► PyMuPDF OCR ──► Groq LLM Analysis         │
+│  GET  /document/:id ◄── SQLAlchemy ORM ◄── PostgreSQL/SQLite │
+│  POST /ask ──► Context Retrieval ──► Groq Llama 3.3          │
+│  GET  /pdf/:id ──► Base64 PDF Streaming                      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                    AI / Data Layer                           │
+│  Groq API (Llama 3.3 / Mixtral fallback)                     │
+│  PyMuPDF (fitz) — exact bounding box extraction             │
+│  Sarvam AI TTS — voice playback                              │
+│  SQLite (dev) / PostgreSQL (prod)                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Screenshots
+
+> **Upload a Contract** — Drag & drop or click to upload any PDF contract
+
+> **Risk Analysis** — Clauses color-coded as High / Medium / Low risk with bounding-box highlights directly on the PDF
+
+> **Smart Q&A** — Ask plain-English questions, get context-specific answers from the document
+
+> **Voice Playback** — Listen to clause summaries using Sarvam AI TTS
+
+_Screenshots and demo GIF coming soon. Visit the [Live Demo](https://vidhived-frontend.onrender.com/) to see the app in action._
+
+## Testing
+
+```bash
+# Run backend tests
+cd backend
+pytest tests/ -v --cov=. --cov-report=term-missing
+```
+
+See `backend/tests/` for the full test suite covering upload, analysis, Q&A, and API endpoints.
