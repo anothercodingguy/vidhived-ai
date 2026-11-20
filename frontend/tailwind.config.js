@@ -1,7 +1,23 @@
+/*
+ * Colours come from the CSS variables in app/globals.css (the single source
+ * of truth). This file only gives them Tailwind class names:
+ *
+ *   --color-bg                 bg-canvas
+ *   --color-surface*           bg-surface, bg-surface-raised, bg-surface-hover
+ *   --color-border*            border-line, border-line-strong
+ *   --color-text*              text-ink, text-ink-secondary, text-ink-muted
+ *   --color-primary            text-primary, bg-primary/10   (text-safe blue)
+ *   --color-primary-solid      bg-primary-solid              (filled buttons)
+ *   --color-risk-*             text-risk-high, bg-risk-medium, ...
+ *
+ * Because the variables change between :root (dark) and .light, these
+ * classes follow the theme on their own. No `dark:` variants are needed.
+ */
+const token = (name) => `rgb(var(${name}) / <alpha-value>)`
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
@@ -9,43 +25,44 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
-        },
+        canvas: token('--color-bg'),
         surface: {
-          DEFAULT: 'rgb(var(--color-surface))',
-          hover: 'rgb(var(--color-surface-hover))',
+          DEFAULT: token('--color-surface'),
+          raised: token('--color-surface-raised'),
+          hover: token('--color-surface-hover'),
         },
-        border: {
-          DEFAULT: 'rgb(var(--color-border))',
-          light: 'rgb(var(--color-border-light))',
+        line: {
+          DEFAULT: token('--color-border'),
+          strong: token('--color-border-strong'),
+        },
+        ink: {
+          DEFAULT: token('--color-text'),
+          secondary: token('--color-text-secondary'),
+          muted: token('--color-text-muted'),
+        },
+        primary: {
+          DEFAULT: token('--color-primary'),
+          solid: token('--color-primary-solid'),
+          'solid-hover': token('--color-primary-solid-hover'),
+        },
+        'on-primary': token('--color-on-primary'),
+        risk: {
+          high: token('--color-risk-high'),
+          medium: token('--color-risk-medium'),
+          low: token('--color-risk-low'),
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-      },
-      animation: {
-        'fade-in': 'fadeIn .3s ease-out',
-        'pulse-ring': 'pulse-ring 1.5s ease-out infinite',
+        // Both fonts are loaded with next/font in app/layout.tsx, which exposes them as CSS variables.
+        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        serif: ['var(--font-display)', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
       },
       boxShadow: {
-        'card': 'var(--shadow-sm)',
-        'card-hover': 'var(--shadow-md)',
-        'elevated': 'var(--shadow-lg)',
+        card: 'var(--shadow-sm)',
+        elevated: 'var(--shadow-lg)',
       },
       borderRadius: {
-        'card': 'var(--radius-lg)',
-        'button': 'var(--radius-md)',
+        card: 'var(--radius-lg)',
       },
     },
   },
