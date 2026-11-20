@@ -34,6 +34,7 @@ logs/
 .next/
 out/
 build/
+*.tsbuildinfo
 
 # GCP credentials
 gcp-key.json
