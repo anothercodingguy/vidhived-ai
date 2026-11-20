@@ -11,6 +11,20 @@ interface PDFViewerProps {
   onGoToPageReady?: (fn: (page: number) => void) => void
 }
 
+const MIN_SCALE = 0.25
+const MAX_SCALE = 3
+const ZOOM_STEP = 0.2
+const PAGE_PADDING = 16 // px of space around the page inside the scroll area
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+const RISK_LABEL: Record<string, string> = { Red: 'High', Yellow: 'Medium', Green: 'Low' }
+const RISK_VAR: Record<string, string> = {
+  Red: 'var(--color-risk-high)',
+  Yellow: 'var(--color-risk-medium)',
+  Green: 'var(--color-risk-low)',
+}
+
 export default function PdfViewer({
   pdfUrl,
   clauses,
@@ -19,74 +33,122 @@ export default function PdfViewer({
   onGoToPageReady,
 }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const [pdfDoc, setPdfDoc] = useState<any>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [reloadKey, setReloadKey] = useState(0)
   const [pageCount, setPageCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
-  const [scale, setScale] = useState(1.5)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
   const [pageInput, setPageInput] = useState('1')
-  const pdfDocRef = useRef<any>(null)
-  const renderTaskRef = useRef<number>(0)
 
-  // Load PDF document
+  // Zoom: "fit" follows the width of the panel, "manual" is whatever the +/- buttons set.
+  const [zoomMode, setZoomMode] = useState<'fit' | 'manual'>('fit')
+  const [manualScale, setManualScale] = useState(1)
+  const [containerWidth, setContainerWidth] = useState(0)
+  // What is actually on screen after the last render: the scale and the page size in CSS pixels.
+  const [rendered, setRendered] = useState<{ scale: number; width: number; height: number } | null>(null)
+
+  // Load the PDF document
   useEffect(() => {
     if (!pdfUrl) return
-    loadPdf()
-  }, [pdfUrl])
+    let cancelled = false
+    let loadingTask: any
 
-  const loadPdf = async () => {
-    setIsLoading(true)
-    setError('')
+    setStatus('loading')
+    setPdfDoc(null)
+    setRendered(null)
 
-    try {
-      const pdfjsLib = await import('pdfjs-dist')
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+    ;(async () => {
+      try {
+        const pdfjsLib = await import('pdfjs-dist')
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 
-      const pdf = await pdfjsLib.getDocument(pdfUrl).promise
-      pdfDocRef.current = pdf
-      setPageCount(pdf.numPages)
-      setCurrentPage(1)
-      setPageInput('1')
-      setIsLoading(false)
-    } catch (err: any) {
-      setError('Failed to load PDF')
-      setIsLoading(false)
+        loadingTask = pdfjsLib.getDocument(pdfUrl)
+        const pdf = await loadingTask.promise
+        if (cancelled) return
+        setPdfDoc(pdf)
+        setPageCount(pdf.numPages)
+        setCurrentPage(1)
+        setPageInput('1')
+        setStatus('ready')
+      } catch {
+        if (!cancelled) setStatus('error')
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      loadingTask?.destroy?.()
     }
-  }
+  }, [pdfUrl, reloadKey])
 
-  // Render current page
+  // Track the width of the scroll area, so "fit" can follow it (window resize, phone rotation, tab switch).
   useEffect(() => {
-    if (!pdfDocRef.current || pageCount === 0) return
-    renderPage(currentPage)
-  }, [currentPage, scale, pageCount])
+    const el = scrollRef.current
+    if (!el || status !== 'ready' || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(entries => {
+      setContainerWidth(Math.floor(entries[0].contentRect.width))
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [status])
 
-  const renderPage = async (pageNum: number) => {
-    const taskId = ++renderTaskRef.current
+  // In manual zoom the panel width does not matter, so it should not trigger a re-render.
+  const fitWidth = zoomMode === 'fit' ? containerWidth : -1
 
-    try {
-      const page = await pdfDocRef.current.getPage(pageNum)
-      if (taskId !== renderTaskRef.current) return // Cancelled
+  // Render the current page
+  useEffect(() => {
+    if (!pdfDoc) return
+    let cancelled = false
+    let renderTask: any
+
+    ;(async () => {
+      const page = await pdfDoc.getPage(currentPage)
+      if (cancelled) return
+
+      let scale = manualScale
+      if (fitWidth !== -1) {
+        // The width is 0 while the viewer is hidden (the Document tab on a phone). Wait until it is shown.
+        if (!fitWidth) return
+        const naturalWidth = page.getViewport({ scale: 1 }).width
+        scale = clamp(fitWidth / naturalWidth, MIN_SCALE, MAX_SCALE)
+      }
 
       const viewport = page.getViewport({ scale })
       const canvas = canvasRef.current
-      if (!canvas) return
+      const ctx = canvas?.getContext('2d')
+      if (!canvas || !ctx) return
 
-      canvas.width = viewport.width
-      canvas.height = viewport.height
+      // Draw at the screen's pixel density (capped at 2x) so text stays sharp on phones and Retina displays.
+      const density = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = Math.floor(viewport.width * density)
+      canvas.height = Math.floor(viewport.height * density)
+      canvas.style.width = `${viewport.width}px`
+      canvas.style.height = `${viewport.height}px`
 
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        await page.render({ canvasContext: ctx, viewport }).promise
+      renderTask = page.render({
+        canvasContext: ctx,
+        viewport,
+        transform: density !== 1 ? [density, 0, 0, density, 0, 0] : undefined,
+      })
+      await renderTask.promise
+      if (!cancelled) setRendered({ scale, width: viewport.width, height: viewport.height })
+    })().catch(err => {
+      if (!cancelled && err?.name !== 'RenderingCancelledException') {
+        console.error(`Failed to render page ${currentPage}:`, err)
       }
-    } catch (err) {
-      console.error(`Failed to render page ${pageNum}:`, err)
+    })
+
+    return () => {
+      cancelled = true
+      renderTask?.cancel()
     }
-  }
+  }, [pdfDoc, currentPage, manualScale, fitWidth])
 
   // Navigation
   const goToPage = useCallback((page: number) => {
-    const p = Math.max(1, Math.min(pageCount, page))
+    const p = clamp(page, 1, Math.max(1, pageCount))
     setCurrentPage(p)
     setPageInput(String(p))
   }, [pageCount])
@@ -108,171 +170,161 @@ export default function PdfViewer({
     else setPageInput(String(currentPage))
   }
 
-  // Keyboard navigation
+  // Left/Right change page, but only while the PDF area itself has focus.
+  // Up/Down are left alone so they keep scrolling.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prevPage() }
+    if (e.key === 'ArrowRight') { e.preventDefault(); nextPage() }
+  }
+
+  const zoomBy = (delta: number) => {
+    const from = rendered?.scale ?? manualScale
+    setManualScale(clamp(Math.round((from + delta) * 10) / 10, MIN_SCALE, MAX_SCALE))
+    setZoomMode('manual')
+  }
+
+  // Bring the selected clause's box into view once its page is on screen.
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prevPage() }
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); nextPage() }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [prevPage, nextPage])
+    if (!highlightedClauseId || !rendered) return
+    const box = scrollRef.current?.querySelector<HTMLElement>(`[data-clause-id="${CSS.escape(highlightedClauseId)}"]`)
+    box?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [highlightedClauseId, rendered, currentPage])
 
-  // Get clause overlays for current page
-  const pageClauses = clauses.filter(c => c.page_number === currentPage && c.bounding_box)
-
-  if (isLoading) {
+  if (status === 'loading') {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex h-full flex-1 items-center justify-center p-6" role="status">
         <div className="text-center">
-          <div className="relative w-10 h-10 mx-auto mb-3">
-            <div className="absolute inset-0 rounded-full border-2 animate-spin" style={{ borderColor: 'rgb(var(--color-border))', borderTopColor: 'rgb(var(--color-primary))' }} />
-          </div>
-          <p className="text-sm" style={{ color: 'rgb(var(--color-text-muted))' }}>Loading PDF...</p>
+          <span aria-hidden="true" className="spinner mb-3 h-10 w-10" />
+          <p className="text-sm text-ink-secondary">Loading PDF…</p>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  if (status === 'error') {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ background: 'rgb(var(--color-risk-high) / .1)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'rgb(var(--color-risk-high))' }}>
+      <div className="flex h-full flex-1 items-center justify-center p-6">
+        <div className="max-w-xs text-center" role="alert">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-risk-high/10 text-risk-high">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
           </div>
-          <p className="text-sm" style={{ color: 'rgb(var(--color-risk-high))' }}>{error}</p>
+          <p className="mb-1 text-sm font-semibold text-ink">Could not load the PDF</p>
+          <p className="mb-4 text-sm text-ink-secondary">The file could not be fetched or opened.</p>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReloadKey(k => k + 1)}>
+            Try again
+          </button>
         </div>
       </div>
     )
   }
 
+  // Clause boxes for the current page, placed using the size of the rendered page.
+  const pageClauses = rendered
+    ? clauses.filter(c => c.page_number === currentPage && c.bounding_box && c.ocr_page_width && c.ocr_page_height)
+    : []
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="glass-surface flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--glass-border)' }}>
-        {/* Pagination controls */}
+      <div className="flex items-center justify-between gap-2 border-b border-line bg-surface px-2 py-1.5" role="toolbar" aria-label="PDF controls">
         <div className="flex items-center gap-1">
-          <button
-            onClick={prevPage}
-            disabled={currentPage <= 1}
-            className="btn-ghost btn-icon"
-            title="Previous page"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <button type="button" onClick={prevPage} disabled={currentPage <= 1} className="btn-ghost btn-icon h-9 w-9" title="Previous page" aria-label="Previous page">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
 
-          <div className="flex items-center gap-1 text-xs">
+          <div className="flex items-center gap-1.5 text-xs">
             <input
               type="text"
+              inputMode="numeric"
+              aria-label="Page number"
               value={pageInput}
               onChange={(e) => setPageInput(e.target.value)}
               onBlur={handlePageInputSubmit}
               onKeyDown={(e) => e.key === 'Enter' && handlePageInputSubmit()}
-              className="w-10 text-center py-1 px-1 rounded text-xs font-medium"
-              style={{
-                background: 'rgb(var(--color-surface-hover))',
-                color: 'rgb(var(--color-text))',
-                border: '1px solid rgb(var(--color-border))',
-              }}
+              className="h-8 w-10 rounded-md border border-line-strong bg-surface-raised text-center text-xs font-medium text-ink"
             />
-            <span style={{ color: 'rgb(var(--color-text-muted))' }}>of {pageCount}</span>
+            <span className="whitespace-nowrap text-ink-secondary">of {pageCount}</span>
           </div>
 
-          <button
-            onClick={nextPage}
-            disabled={currentPage >= pageCount}
-            className="btn-ghost btn-icon"
-            title="Next page"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <button type="button" onClick={nextPage} disabled={currentPage >= pageCount} className="btn-ghost btn-icon h-9 w-9" title="Next page" aria-label="Next page">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
         </div>
 
-        {/* Zoom controls */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setScale(s => Math.max(0.5, s - 0.2))}
-            className="btn-ghost btn-icon"
-            title="Zoom out"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          <button type="button" onClick={() => zoomBy(-ZOOM_STEP)} disabled={(rendered?.scale ?? 1) <= MIN_SCALE} className="btn-ghost btn-icon h-9 w-9" title="Zoom out" aria-label="Zoom out">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
           </button>
-          <span className="text-xs font-medium w-12 text-center" style={{ color: 'rgb(var(--color-text-secondary))' }}>
-            {Math.round(scale * 100)}%
+          <span className="w-11 text-center text-xs font-medium tabular-nums text-ink-secondary" aria-live="polite">
+            <span className="sr-only">Zoom </span>{rendered ? `${Math.round(rendered.scale * 100)}%` : '…'}
           </span>
+          <button type="button" onClick={() => zoomBy(ZOOM_STEP)} disabled={(rendered?.scale ?? 1) >= MAX_SCALE} className="btn-ghost btn-icon h-9 w-9" title="Zoom in" aria-label="Zoom in">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          </button>
           <button
-            onClick={() => setScale(s => Math.min(3, s + 0.2))}
-            className="btn-ghost btn-icon"
-            title="Zoom in"
+            type="button"
+            onClick={() => setZoomMode('fit')}
+            aria-pressed={zoomMode === 'fit'}
+            className={`btn-ghost h-9 text-xs font-medium ${zoomMode === 'fit' ? 'bg-primary/10 text-primary' : ''}`}
+            title="Fit page to width"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            Fit<span className="sr-only"> page to width</span>
           </button>
         </div>
       </div>
 
-      {/* Single Page Canvas */}
+      {/* Single page. The scroll area can take focus so the keyboard can scroll it and turn pages. */}
       <div
-        ref={containerRef}
-        className="flex-1 overflow-auto p-4 flex items-start justify-center"
-        style={{ background: 'rgb(var(--color-bg))' }}
+        ref={scrollRef}
+        tabIndex={0}
+        role="group"
+        aria-label={`PDF page ${currentPage} of ${pageCount}. Use the left and right arrow keys to change page.`}
+        onKeyDown={handleKeyDown}
+        className="flex-1 overflow-auto bg-canvas [scrollbar-gutter:stable]"
+        style={{ padding: PAGE_PADDING }}
       >
-        <div className="relative" style={{ boxShadow: 'var(--shadow-lg)' }}>
-          <canvas ref={canvasRef} style={{ display: 'block' }} />
+        {/* mx-auto + w-max centres the page, and unlike flex centring it stays fully scrollable when zoomed in. */}
+        <div className="relative mx-auto w-max bg-white shadow-elevated">
+          <canvas ref={canvasRef} className="block" />
 
-          {/* Clause overlays for current page */}
-          {pageClauses.map(clause => {
-            if (!clause.bounding_box || !clause.ocr_page_width || !clause.ocr_page_height) return null
-            const canvas = canvasRef.current
-            if (!canvas) return null
-
-            const containerWidth = canvas.width
-            const containerHeight = canvas.height
-
-            const sx = containerWidth / clause.ocr_page_width
-            const sy = containerHeight / clause.ocr_page_height
-
-            const v = clause.bounding_box.vertices
-            const left = v[0].x * sx
-            const top = v[0].y * sy
-            const width = (v[1].x - v[0].x) * sx
-            const height = (v[3].y - v[0].y) * sy
-
+          {rendered && pageClauses.map(clause => {
+            const sx = rendered.width / clause.ocr_page_width!
+            const sy = rendered.height / clause.ocr_page_height!
+            const v = clause.bounding_box!.vertices
             const isHighlighted = highlightedClauseId === clause.id
-            const color = clause.category === 'Red' ? 'var(--color-risk-high)' : clause.category === 'Yellow' ? 'var(--color-risk-medium)' : 'var(--color-risk-low)'
+            const risk = RISK_LABEL[clause.category] ?? 'Medium'
 
             return (
-              <div
+              <button
                 key={clause.id}
-                className="absolute cursor-pointer pdf-overlay-box"
+                type="button"
+                data-clause-id={clause.id}
+                className="pdf-overlay-box"
+                aria-pressed={isHighlighted}
+                aria-label={`${clause.type} clause, ${risk.toLowerCase()} risk. Show details.`}
+                title={`${clause.type}: ${clause.explanation}`}
                 onClick={() => onClauseClick?.(clause.id)}
                 style={{
-                  left: `${left}px`,
-                  top: `${top}px`,
-                  width: `${width}px`,
-                  height: `${height}px`,
-                  background: `rgb(${color} / ${isHighlighted ? '.2' : '.08'})`,
-                  border: `2px solid rgb(${color} / ${isHighlighted ? '.6' : '.25'})`,
-                  borderRadius: '4px',
-                  zIndex: isHighlighted ? 30 : 10,
-                  transition: 'all 0.2s ease',
+                  left: v[0].x * sx,
+                  top: v[0].y * sy,
+                  width: (v[1].x - v[0].x) * sx,
+                  height: (v[3].y - v[0].y) * sy,
+                  ['--overlay-color' as any]: RISK_VAR[clause.category] ?? RISK_VAR.Yellow,
                 }}
-                title={`${clause.type}: ${clause.explanation}`}
               >
                 {isHighlighted && (
-                  <div className="absolute -top-6 left-0 text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap"
-                    style={{ background: `rgb(${color})`, color: '#fff', fontSize: '10px' }}>
-                    {clause.type} — {clause.category === 'Red' ? 'High' : clause.category === 'Yellow' ? 'Medium' : 'Low'} Risk
-                  </div>
+                  <span aria-hidden="true" className="absolute -top-6 left-0 whitespace-nowrap rounded bg-slate-900 px-2 py-0.5 text-xs font-medium text-white">
+                    {clause.type} · {risk} risk
+                  </span>
                 )}
-              </div>
+              </button>
             )
           })}
         </div>

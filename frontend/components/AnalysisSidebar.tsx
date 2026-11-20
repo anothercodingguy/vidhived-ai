@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useEffect, useId } from 'react'
 import { Clause } from '@/lib/api'
-import AudioPlayer from './AudioPlayer'
+import AudioPlayer, { VoiceUnavailableNote } from './AudioPlayer'
+import RichText from './RichText'
 
 interface AnalysisSidebarProps {
   clauses: Clause[]
@@ -13,17 +14,29 @@ interface AnalysisSidebarProps {
   highlightedClauseId?: string | null
 }
 
+type RiskFilter = 'all' | Clause['category']
+
+// One place that maps the backend's Red/Yellow/Green to labels and token classes.
+const RISK = {
+  Red: { label: 'High', badge: 'badge-red', dot: 'dot-high', bar: 'bg-risk-high', text: 'text-risk-high' },
+  Yellow: { label: 'Medium', badge: 'badge-yellow', dot: 'dot-medium', bar: 'bg-risk-medium', text: 'text-risk-medium' },
+  Green: { label: 'Low', badge: 'badge-green', dot: 'dot-low', bar: 'bg-risk-low', text: 'text-risk-low' },
+} as const
+
+const riskOf = (category: string) => RISK[category as keyof typeof RISK] ?? RISK.Yellow
+
+const sectionLabel = 'text-xs font-semibold uppercase tracking-wider text-ink-muted'
+
 export default function AnalysisSidebar({
   clauses,
   onClauseClick,
   onAskAboutClause,
   documentSummary,
-  fullAnalysis,
   highlightedClauseId,
 }: AnalysisSidebarProps) {
-  const [filter, setFilter] = useState<'all' | 'Red' | 'Yellow' | 'Green'>('all')
-  const [expandedSection, setExpandedSection] = useState<'summary' | 'clauses' | null>('summary')
-  const clauseListRef = useRef<HTMLDivElement>(null)
+  const [filter, setFilter] = useState<RiskFilter>('all')
+  const [summaryOpen, setSummaryOpen] = useState(true)
+  const summaryId = useId()
 
   const stats = useMemo(() => {
     const high = clauses.filter(c => c.category === 'Red').length
@@ -38,121 +51,133 @@ export default function AnalysisSidebar({
     return clauses.filter(c => c.category === filter)
   }, [filter, clauses])
 
+  // When a clause is picked in the PDF, bring its card into view.
   useEffect(() => {
-    if (highlightedClauseId) {
-      const el = document.getElementById(`sidebar-${highlightedClauseId}`)
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+    if (!highlightedClauseId) return
+    const el = document.getElementById(`sidebar-${highlightedClauseId}`)
+    if (!el) return
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
   }, [highlightedClauseId])
 
-  const riskColor = stats.avgScore > 0.6 ? 'var(--color-risk-high)' : stats.avgScore > 0.3 ? 'var(--color-risk-medium)' : 'var(--color-risk-low)'
+  const avgRisk = stats.avgScore > 0.6 ? RISK.Red : stats.avgScore > 0.3 ? RISK.Yellow : RISK.Green
+
+  const filters = [
+    { key: 'Red', count: stats.high },
+    { key: 'Yellow', count: stats.medium },
+    { key: 'Green', count: stats.low },
+  ] as const
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-4 space-y-3" ref={clauseListRef}>
+    <div className="h-full overflow-y-auto p-4">
+      <div className="mx-auto flex max-w-2xl flex-col gap-3">
 
         {/* Risk Overview */}
-        <div className="bg-white dark:bg-[#0f0f11] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm animate-fadeIn">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Risk Overview
-            </h3>
-            <div className="text-sm font-bold" style={{ color: `rgb(${riskColor})` }}>
-              {(stats.avgScore * 100).toFixed(0)}% risk
-            </div>
+        <section aria-label="Risk overview" className="card animate-fadeIn p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <h2 className={sectionLabel}>Risk Overview</h2>
+            {stats.total > 0 && (
+              <p className={`text-sm font-semibold ${avgRisk.text}`}>
+                Average clause risk {(stats.avgScore * 100).toFixed(0)}%
+              </p>
+            )}
           </div>
 
-          {/* Risk bar */}
-          <div className="flex rounded-full overflow-hidden h-1.5 mb-3" style={{ background: 'rgb(var(--color-border))' }}>
+          <div
+            role="img"
+            aria-label={`${stats.high} high risk, ${stats.medium} medium risk and ${stats.low} low risk clauses`}
+            className="mb-3 flex h-2 overflow-hidden rounded-full bg-line"
+          >
             {stats.total > 0 && (
               <>
-                <div style={{ width: `${(stats.high / stats.total) * 100}%`, background: 'rgb(var(--color-risk-high))' }} />
-                <div style={{ width: `${(stats.medium / stats.total) * 100}%`, background: 'rgb(var(--color-risk-medium))' }} />
-                <div style={{ width: `${(stats.low / stats.total) * 100}%`, background: 'rgb(var(--color-risk-low))' }} />
+                <div className="bg-risk-high" style={{ width: `${(stats.high / stats.total) * 100}%` }} />
+                <div className="bg-risk-medium" style={{ width: `${(stats.medium / stats.total) * 100}%` }} />
+                <div className="bg-risk-low" style={{ width: `${(stats.low / stats.total) * 100}%` }} />
               </>
             )}
           </div>
 
-          <div className="flex gap-4 text-xs">
-            <button onClick={() => setFilter(f => f === 'Red' ? 'all' : 'Red')} className={`flex items-center gap-1.5 transition-opacity ${filter !== 'all' && filter !== 'Red' ? 'opacity-30' : ''}`}>
-              <span className="dot dot-high" />
-              <span style={{ color: 'rgb(var(--color-text-secondary))' }}>{stats.high} High</span>
-            </button>
-            <button onClick={() => setFilter(f => f === 'Yellow' ? 'all' : 'Yellow')} className={`flex items-center gap-1.5 transition-opacity ${filter !== 'all' && filter !== 'Yellow' ? 'opacity-30' : ''}`}>
-              <span className="dot dot-medium" />
-              <span style={{ color: 'rgb(var(--color-text-secondary))' }}>{stats.medium} Medium</span>
-            </button>
-            <button onClick={() => setFilter(f => f === 'Green' ? 'all' : 'Green')} className={`flex items-center gap-1.5 transition-opacity ${filter !== 'all' && filter !== 'Green' ? 'opacity-30' : ''}`}>
-              <span className="dot dot-low" />
-              <span style={{ color: 'rgb(var(--color-text-secondary))' }}>{stats.low} Low</span>
-            </button>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter clauses by risk">
+            {filters.map(({ key, count }) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={filter === key}
+                onClick={() => setFilter(f => (f === key ? 'all' : key))}
+                className={`inline-flex min-h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors ${
+                  filter === key
+                    ? 'border-primary bg-primary/10 text-ink'
+                    : 'border-line text-ink-secondary hover:bg-surface-hover hover:text-ink'
+                }`}
+              >
+                <span className={`dot ${RISK[key].dot}`} />
+                {count} {RISK[key].label}
+              </button>
+            ))}
           </div>
-        </div>
+        </section>
 
         {/* Executive Summary */}
         {documentSummary && (
-          <div className="bg-white dark:bg-[#0f0f11] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm animate-fadeIn overflow-hidden" style={{ animationDelay: '.05s' }}>
-            <button
-              onClick={() => setExpandedSection(s => s === 'summary' ? null : 'summary')}
-              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-            >
-              <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-500">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+          <section className="card animate-fadeIn overflow-hidden">
+            <h2>
+              <button
+                type="button"
+                onClick={() => setSummaryOpen(open => !open)}
+                aria-expanded={summaryOpen}
+                aria-controls={summaryId}
+                className="flex w-full items-center justify-between gap-3 p-4 text-left text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
+              >
+                <span className="flex items-center gap-2">
+                  <svg aria-hidden="true" className="text-primary" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                  Executive Summary
+                </span>
+                <svg aria-hidden="true" className={`text-ink-muted transition-transform ${summaryOpen ? 'rotate-180' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
                 </svg>
-                Executive Summary
-              </h3>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: expandedSection === 'summary' ? 'rotate(180deg)' : 'none', transition: 'transform .2s', color: 'rgb(var(--color-text-muted))' }}>
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-            {expandedSection === 'summary' && (
-              <div className="px-4 pb-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20">
-                <div className="pt-3 text-sm leading-relaxed whitespace-pre-line text-slate-600 dark:text-slate-300">
-                  {documentSummary}
-                </div>
-                <div className="mt-3 flex items-center gap-2">
-                  <AudioPlayer text={documentSummary} size="sm" />
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Listen</span>
-                </div>
+              </button>
+            </h2>
+            <div id={summaryId} hidden={!summaryOpen} className="border-t border-line px-4 pb-4 pt-3">
+              <RichText text={documentSummary} className="text-sm leading-relaxed text-ink-secondary" />
+              <div className="mt-3">
+                <AudioPlayer text={documentSummary} subject="the summary" showLabel />
+                <VoiceUnavailableNote />
               </div>
-            )}
-          </div>
+            </div>
+          </section>
         )}
 
         {/* Clause List */}
-        <div className="animate-fadeIn" style={{ animationDelay: '.1s' }}>
-          <div className="flex items-center justify-between mb-2 px-1">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Clauses ({filtered.length})
-            </h3>
+        <section aria-label="Clauses" className="animate-fadeIn">
+          <div className="mb-2 flex min-h-8 items-center justify-between px-1">
+            <h2 className={sectionLabel}>Clauses ({filtered.length})</h2>
             {filter !== 'all' && (
-              <button onClick={() => setFilter('all')} className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700">
+              <button type="button" onClick={() => setFilter('all')} className="btn-ghost text-xs font-medium text-primary">
                 Show all
               </button>
             )}
           </div>
 
-          <div className="space-y-2">
-            {filtered.map((clause, idx) => (
+          <ul className="flex flex-col gap-2">
+            {filtered.map(clause => (
               <ClauseCard
                 key={clause.id}
                 clause={clause}
                 isHighlighted={highlightedClauseId === clause.id}
-                onClick={() => onClauseClick(clause.id)}
+                onShow={() => onClauseClick(clause.id)}
                 onAsk={onAskAboutClause ? () => onAskAboutClause(clause) : undefined}
-                index={idx}
               />
             ))}
+          </ul>
 
-            {filtered.length === 0 && (
-              <div className="text-center py-8 text-sm" style={{ color: 'rgb(var(--color-text-muted))' }}>
-                No clauses match this filter
-              </div>
-            )}
-          </div>
-        </div>
+          {filtered.length === 0 && (
+            <p className="py-8 text-center text-sm text-ink-muted">
+              No clauses match this filter
+            </p>
+          )}
+        </section>
       </div>
     </div>
   )
@@ -163,131 +188,129 @@ export default function AnalysisSidebar({
 interface ClauseCardProps {
   clause: Clause
   isHighlighted: boolean
-  onClick: () => void
+  onShow: () => void
   onAsk?: () => void
-  index: number
 }
 
-function ClauseCard({ clause, isHighlighted, onClick, onAsk, index }: ClauseCardProps) {
+function ClauseCard({ clause, isHighlighted, onShow, onAsk }: ClauseCardProps) {
   const [expanded, setExpanded] = useState(false)
-
-  const badgeClass = clause.category === 'Red' ? 'badge-red' : clause.category === 'Yellow' ? 'badge-yellow' : 'badge-green'
-  const riskLabel = clause.category === 'Red' ? 'High' : clause.category === 'Yellow' ? 'Medium' : 'Low'
-  const dotClass = clause.category === 'Red' ? 'dot-high' : clause.category === 'Yellow' ? 'dot-medium' : 'dot-low'
+  const detailsId = useId()
+  const risk = riskOf(clause.category)
 
   return (
-    <div
+    <li
       id={`sidebar-${clause.id}`}
-      className={`bg-white dark:bg-[#0f0f11] border rounded-2xl cursor-pointer transition-all hover:shadow-md ${isHighlighted ? 'border-blue-500 shadow-md ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
-      style={{ animationDelay: `${index * 0.02}s` }}
+      className={`card card-interactive overflow-hidden ${isHighlighted ? 'card-active' : ''}`}
     >
-      {/* Header */}
-      <div className="p-4 flex items-start gap-3" onClick={onClick}>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <span className={`badge ${badgeClass}`}>
-              <span className={`dot ${dotClass}`} />
-              {riskLabel}
-            </span>
-            <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-              {clause.type}
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 ml-auto">
-              p.{clause.page_number}
-            </span>
-          </div>
+      {/* The whole header is one real button: it shows the clause in the PDF. */}
+      <button
+        type="button"
+        onClick={onShow}
+        aria-current={isHighlighted ? 'true' : undefined}
+        className="block w-full p-4 text-left transition-colors hover:bg-surface-hover/60"
+      >
+        <span className="mb-2 flex flex-wrap items-center gap-2">
+          <span className={`badge ${risk.badge}`}>
+            <span className={`dot ${risk.dot}`} />
+            {risk.label}<span className="sr-only"> risk</span>
+          </span>
+          <span className="rounded bg-surface-raised px-2 py-0.5 text-xs font-medium text-ink-secondary">
+            {clause.type}
+          </span>
+          <span className="ml-auto text-xs text-ink-muted">
+            <span className="sr-only">page </span><span aria-hidden="true">p.</span>{clause.page_number}
+          </span>
+        </span>
 
-          {clause.summary && (
-            <p className="text-sm font-medium mb-1 text-slate-800 dark:text-slate-200 leading-snug">
-              {clause.summary}
-            </p>
-          )}
+        {clause.summary && (
+          <span className="mb-1 block text-sm font-medium leading-snug text-ink">
+            {clause.summary}
+          </span>
+        )}
 
-          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-            {clause.explanation}
-          </p>
-        </div>
-      </div>
+        <span className="line-clamp-2 text-xs leading-relaxed text-ink-secondary">
+          {clause.explanation}
+        </span>
+        <span className="sr-only">. Show this clause in the document.</span>
+      </button>
 
       {/* Actions */}
-      <div className="px-4 py-2 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#09090b]/50 rounded-b-2xl">
+      <div className="flex flex-wrap items-center gap-1 border-t border-line bg-surface-raised/50 px-3 py-1.5">
         <button
-          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded) }}
-          className="btn-ghost py-1 px-2 text-xs"
+          type="button"
+          onClick={() => setExpanded(open => !open)}
+          aria-expanded={expanded}
+          aria-controls={detailsId}
+          className="btn-ghost min-h-8 text-xs font-medium"
         >
           {expanded ? 'Less' : 'More'}
+          <svg aria-hidden="true" className={`transition-transform ${expanded ? 'rotate-180' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </button>
 
-        <button onClick={(e) => { e.stopPropagation(); onClick() }} className="btn-ghost py-1 px-2 text-xs" title="Highlight in PDF">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-        </button>
-
-        <AudioPlayer text={clause.explanation || clause.summary || clause.text.slice(0, 200)} size="sm" />
+        <AudioPlayer
+          text={clause.explanation || clause.summary || clause.text.slice(0, 200)}
+          subject={`the explanation of this ${clause.type} clause`}
+          showLabel
+        />
 
         {onAsk && (
-          <button onClick={(e) => { e.stopPropagation(); onAsk() }} className="btn-ghost py-1 px-2 text-xs" title="Ask about this clause">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+          <button type="button" onClick={onAsk} className="btn-ghost min-h-8 text-xs font-medium">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Ask<span className="sr-only"> about this {clause.type} clause</span>
           </button>
         )}
       </div>
 
       {/* Expanded content */}
-      {expanded && (
-        <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-black/10 animate-fadeIn rounded-b-2xl">
-          <div className="pt-3 space-y-3">
-            {/* Full text */}
-            <div>
-              <p className="text-xs font-semibold mb-1.5 text-slate-500 dark:text-slate-400">Original Text</p>
-              <p className="text-xs leading-relaxed p-3 rounded-xl bg-slate-100 dark:bg-[#151518] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
-                {clause.text.slice(0, 500)}{clause.text.length > 500 ? '...' : ''}
-              </p>
-            </div>
-
-            {/* Entities */}
-            {clause.entities && clause.entities.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold mb-1.5 text-slate-500 dark:text-slate-400">Entities</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {clause.entities.map((e, i) => (
-                    <span key={i} className="text-xs px-2 py-1 rounded bg-blue-50/50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20">
-                      {e.text} <span className="opacity-60 text-[10px] uppercase ml-1">({e.type})</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Legal terms */}
-            {clause.legal_terms && clause.legal_terms.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold mb-1.5 text-slate-500 dark:text-slate-400">Legal Terms</p>
-                <div className="space-y-1.5">
-                  {clause.legal_terms.map((lt, i) => (
-                    <div key={i} className="text-xs leading-relaxed">
-                      <span className="font-semibold text-slate-700 dark:text-slate-200">{lt.term}:</span>{' '}
-                      <span className="text-slate-600 dark:text-slate-400">{lt.definition}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Risk Score */}
-            <div className="flex items-center gap-3 pt-1">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Risk score:</span>
-              <div className="flex-1 h-2 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800">
-                <div className="h-full rounded-full transition-all duration-500" style={{
-                  width: `${clause.score * 100}%`,
-                  background: clause.category === 'Red' ? '#ef4444' : clause.category === 'Yellow' ? '#f59e0b' : '#22c55e',
-                }} />
-              </div>
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                {(clause.score * 100).toFixed(0)}%
-              </span>
-            </div>
-          </div>
+      <div id={detailsId} hidden={!expanded} className="space-y-3 border-t border-line px-4 pb-4 pt-3">
+        <div>
+          <h3 className="mb-1.5 text-xs font-semibold text-ink-muted">Original Text</h3>
+          <p className="rounded-lg border border-line bg-surface-raised p-3 text-xs leading-relaxed text-ink-secondary">
+            {clause.text.slice(0, 500)}{clause.text.length > 500 ? '…' : ''}
+          </p>
         </div>
-      )}
-    </div>
+
+        {clause.entities && clause.entities.length > 0 && (
+          <div>
+            <h3 className="mb-1.5 text-xs font-semibold text-ink-muted">Entities</h3>
+            <ul className="flex flex-wrap gap-1.5">
+              {clause.entities.map((e, i) => (
+                <li key={i} className="rounded border border-primary/25 bg-primary/10 px-2 py-1 text-xs text-ink">
+                  {e.text} <span className="ml-1 uppercase text-ink-muted">({e.type})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {clause.legal_terms && clause.legal_terms.length > 0 && (
+          <div>
+            <h3 className="mb-1.5 text-xs font-semibold text-ink-muted">Legal Terms</h3>
+            <dl className="space-y-1.5 text-xs leading-relaxed">
+              {clause.legal_terms.map((lt, i) => (
+                <div key={i}>
+                  <dt className="inline font-semibold text-ink">{lt.term}:</dt>{' '}
+                  <dd className="inline text-ink-secondary">{lt.definition}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 pt-1">
+          <span className="text-xs font-medium text-ink-muted">Risk score:</span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
+            <div className={`h-full rounded-full ${risk.bar}`} style={{ width: `${clause.score * 100}%` }} />
+          </div>
+          <span className="text-xs font-semibold text-ink">
+            {(clause.score * 100).toFixed(0)}%
+          </span>
+        </div>
+      </div>
+    </li>
   )
 }
